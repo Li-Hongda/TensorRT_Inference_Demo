@@ -50,9 +50,9 @@ std::vector<Detections> Detection::InferenceImages(std::vector<cv::Mat> &vec_img
 
 // void Detection::Inference(const std::string &input_path, const bool video) {
 //     // int ret;
-//     // ret = CheckDir(folder_name);
+//     // ret = CheckDir(input_path);
 //     // if (ret == 0)
-//     //     InferenceFolder(folder_name);
+//     //     InferenceFolder(input_path);
 //     if (video == true){
 //         int total_frames = 0;
 
@@ -103,12 +103,12 @@ std::vector<Detections> Detection::InferenceImages(std::vector<cv::Mat> &vec_img
 
 // }
 
-void Detection::InferenceFolder(const std::string &folder_name) {
-    std::vector<std::string> image_list = ReadFolder(folder_name);
+void Detection::InferenceFolder(const std::string &input_path) {
+    std::vector<std::string> image_list = ReadFolder(input_path);
     int index = 0;
     int batch_id = 0;
-    std::vector<cv::Mat> vec_Mat(BATCH_SIZE);
-    std::vector<std::string> vec_name(BATCH_SIZE);
+    std::vector<cv::Mat> imgBatch(BATCH_SIZE);
+    std::vector<std::string> imgInfo(BATCH_SIZE);
     float total_time = 0;
     for (const std::string &image_name : image_list) {
         index++;
@@ -119,16 +119,16 @@ void Detection::InferenceFolder(const std::string &folder_name) {
         if (src_img.data) {
 
             cv::cvtColor(src_img, src_img, cv::COLOR_BGR2RGB);
-            vec_Mat[batch_id] = src_img.clone();
-            vec_name[batch_id] = image_name;
+            imgBatch[batch_id] = src_img.clone();
+            imgInfo[batch_id] = image_name;
             batch_id++;
         }
         if (batch_id == BATCH_SIZE or index == image_list.size()) {
             auto start_time = std::chrono::high_resolution_clock::now();
-            auto det_results = InferenceImages(vec_Mat);
+            auto det_results = InferenceImages(imgBatch);
             auto end_time = std::chrono::high_resolution_clock::now();
-            Visualize(det_results, vec_Mat, vec_name);
-            vec_Mat = std::vector<cv::Mat>(BATCH_SIZE);
+            Visualize(det_results, imgBatch, imgInfo);
+            imgBatch = std::vector<cv::Mat>(BATCH_SIZE);
             batch_id = 0;
             total_time += std::chrono::duration<float, std::milli>(end_time - start_time).count();
         }

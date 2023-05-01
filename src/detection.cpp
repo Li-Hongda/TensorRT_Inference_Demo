@@ -115,11 +115,11 @@ void Detection::InferenceFolder(const std::string &input_path) {
         // TODO: figure out why double free.
         // sample::gLogInfo << "Processing: " << image_name << std::endl;
         std::cout << "Processing: " << image_name << std::endl;
-        cv::Mat src_img = cv::imread(image_name);
-        if (src_img.data) {
+        cv::Mat img = cv::imread(image_name);
+        if (img.data) {
 
-            cv::cvtColor(src_img, src_img, cv::COLOR_BGR2RGB);
-            imgBatch[batch_id] = src_img.clone();
+            cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
+            imgBatch[batch_id] = img.clone();
             imgInfo[batch_id] = image_name;
             batch_id++;
         }

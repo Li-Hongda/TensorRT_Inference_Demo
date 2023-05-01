@@ -30,3 +30,11 @@
 *.exe
 *.out
 *.app
+
+bin
+.vscode
+weights
+yaml-cpp-yaml-cpp-0.6.3
+build
+demo
+configs/labels

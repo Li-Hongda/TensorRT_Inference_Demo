@@ -9,8 +9,10 @@ public:
     explicit Model(const YAML::Node &config);
     ~Model();
     void LoadEngine();
-//    virtual float *InferenceImage(std::vector<float> image_data) = 0;
-    virtual void InferenceFolder(const std::string &folder_name) = 0;
+    virtual void Inference(const std::string &input_path, const std::string &save_path, const bool video) = 0;
+    virtual void Inference(const std::string &input_path, const std::string &save_path) = 0;
+    // virtual void Inference(const std::string &input_path, const bool video) = 0;
+    // virtual void Inference(const std::string &input_path) = 0;
 
 protected:
     bool ReadTrtFile();
@@ -19,8 +21,7 @@ protected:
     void ModelInference(std::vector<float> image_data, float *output);
     std::string onnx_file;
     std::string engine_file;
-    std::string labels_file;
-    bool video;
+    std::string mode;
     int BATCH_SIZE;
     int INPUT_CHANNEL;
     int IMAGE_WIDTH;
@@ -33,6 +34,5 @@ protected:
     int outSize;
     std::vector<float> img_mean;
     std::vector<float> img_std;
-    std::string resize;
 };
 #endif

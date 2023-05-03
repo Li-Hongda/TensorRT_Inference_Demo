@@ -1,17 +1,14 @@
 yolov5:
-    # onnx_file:     "../weights/yolov5s.onnx"
-    # engine_file:   "../weights/yolov5s.trt"
-    type:         "coco80"
-    onnx_file:     "/home/lhd/code/practice/TensorRT_Inference_Demo/weights/yolov5s.onnx"
-    engine_file:   "/home/lhd/code/practice/TensorRT_Inference_Demo/weights/yolov5s.trt"
-    video:         False
-    BATCH_SIZE:    10
+    onnx_file:     "weights/yolov5s.onnx"
+    engine_file:   "weights/yolov5s.trt"
+    type:          "coco80"
+    mode:          "fp32"
+    BATCH_SIZE:    1
     INPUT_CHANNEL: 3
     IMAGE_WIDTH:   640
     IMAGE_HEIGHT:  640
     obj_threshold: 0.4
     nms_threshold: 0.45
     strides:       [8, 16, 32]
-    num_anchors:   [3,  3,  3]
     img_mean:      [ 0, 0, 0 ]
     img_std:       [ 1, 1, 1 ]

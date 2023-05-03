@@ -3,14 +3,13 @@
 Model::Model(const YAML::Node &config) {
     onnx_file = config["onnx_file"].as<std::string>();
     engine_file = config["engine_file"].as<std::string>();
-    video = config["video"].as<bool>();
+    mode = config["mode"].as<std::string>();
     BATCH_SIZE = config["BATCH_SIZE"].as<int>();
     INPUT_CHANNEL = config["INPUT_CHANNEL"].as<int>();
     IMAGE_WIDTH = config["IMAGE_WIDTH"].as<int>();
     IMAGE_HEIGHT = config["IMAGE_HEIGHT"].as<int>();
     img_mean = config["img_mean"].as<std::vector<float>>();
     img_std = config["img_std"].as<std::vector<float>>();
-    // resize = config["resize"].as<std::string>();
 }
 
 Model::~Model() = default;
@@ -29,31 +28,29 @@ void Model::OnnxToTRTModel() {
         sample::gLogError << "Failure while parsing ONNX file" << std::endl;
     }
     // Build the engine
-    // builder->setMaxBatchSize(BATCH_SIZE);
-    // config->setMaxWorkspaceSize(8_GiB);
     config->setMemoryPoolLimit(nvinfer1::MemoryPoolType::kWORKSPACE, 1U << 30);
-    // config->setFlag(nvinfer1::BuilderFlag::kFP16);
+    if (mode == "fp16")
+        config->setFlag(nvinfer1::BuilderFlag::kFP16);
+    else if  (mode == "int8")
+        config->setFlag(nvinfer1::BuilderFlag::kINT8);
 
     sample::gLogInfo << "start building engine" << std::endl;
-    // engine = builder->buildEngineWithConfig(*network, *config);
     nvinfer1::IHostMemory* data = builder->buildSerializedNetwork(*network, *config);
     sample::gLogInfo << "build engine done" << std::endl;
     assert(data);
-    // we can destroy the parser
-    parser->destroy();
-    // delete parser;
-    // save engine
-    // nvinfer1::IHostMemory *data = engine->serialize();
+    
+
     std::ofstream file;
     file.open(engine_file, std::ios::binary | std::ios::out);
     sample::gLogInfo << "writing engine file..." << std::endl;
     file.write((const char *) data->data(), data->size());
-    // file.write((const char *) engine->data(), engine->size());
     sample::gLogInfo << "save engine file done" << std::endl;
     file.close();
-    // then close everything down
-    network->destroy();
-    builder->destroy();
+
+    delete parser;
+    delete config;
+    delete network;
+    delete builder;
 }
 
 bool Model::ReadTrtFile() {
@@ -76,7 +73,6 @@ bool Model::ReadTrtFile() {
     file.close();
 
     trtRuntime = nvinfer1::createInferRuntime(sample::gLogger.getTRTLogger());
-    // initLibNvInferPlugins(&sample::gLogger, "");
     engine = trtRuntime->deserializeCudaEngine(cached_engine.data(), cached_engine.size(), nullptr);
     // sample::gLogInfo << "deserialize done" << std::endl;
 
@@ -106,8 +102,6 @@ void Model::LoadEngine() {
         nvinfer1::DataType dtype = engine->getBindingDataType(i);
         int64_t totalSize = volume(dims) * getElementSize(dtype);
         bufferSize[i] = totalSize;
-        
-        // sample::gLogInfo << "binding" << i << ": " << totalSize << std::endl;
         cudaMalloc(&buffers[i], totalSize);
     }
     //get stream
@@ -115,28 +109,28 @@ void Model::LoadEngine() {
     outSize = int(bufferSize[1] / sizeof(float) / BATCH_SIZE);
 }
 
-std::vector<float> Model::PreProcess(std::vector<cv::Mat> &vec_img) {
+std::vector<float> Model::PreProcess(std::vector<cv::Mat> &imgBatch) {
     std::vector<float> result(BATCH_SIZE * IMAGE_WIDTH * IMAGE_HEIGHT * INPUT_CHANNEL);
     float *data = result.data();
-    for (const cv::Mat &src_img : vec_img) {
-        if (!src_img.data)
+    for (const cv::Mat &img : imgBatch) {
+        if (!img.data)
             continue;
-        cv::Mat flt_img;
+        cv::Mat dst_img;
         if (INPUT_CHANNEL == 1)
-            cv::cvtColor(src_img, flt_img, cv::COLOR_RGB2GRAY);
+            cv::cvtColor(img, dst_img, cv::COLOR_RGB2GRAY);
         else if (INPUT_CHANNEL == 3)
-            flt_img = src_img.clone();
-        float ratio = std::min(float(IMAGE_WIDTH) / float(src_img.cols), float(IMAGE_HEIGHT) / float(src_img.rows));
-        flt_img = cv::Mat::zeros(cv::Size(IMAGE_WIDTH, IMAGE_HEIGHT), CV_8UC3);
+            cv::cvtColor(img, dst_img, cv::COLOR_BGR2RGB);
+        float ratio = std::min(float(IMAGE_WIDTH) / float(img.cols), float(IMAGE_HEIGHT) / float(img.rows));
+        dst_img = cv::Mat::zeros(cv::Size(IMAGE_WIDTH, IMAGE_HEIGHT), CV_8UC3);
         cv::Mat rsz_img;
-        cv::resize(src_img, rsz_img, cv::Size(), ratio, ratio);
-        rsz_img.copyTo(flt_img(cv::Rect(0, 0, rsz_img.cols, rsz_img.rows)));
+        cv::resize(img, rsz_img, cv::Size(), ratio, ratio);
+        rsz_img.copyTo(dst_img(cv::Rect(0, 0, rsz_img.cols, rsz_img.rows)));
         if (INPUT_CHANNEL == 1)
-            flt_img.convertTo(flt_img, CV_32FC1, 1 / 255.0);
+            dst_img.convertTo(dst_img, CV_32FC1, 1 / 255.0);
         else if (INPUT_CHANNEL == 3)
-            flt_img.convertTo(flt_img, CV_32FC3, 1 / 255.0);
+            dst_img.convertTo(dst_img, CV_32FC3, 1 / 255.0);
         std::vector<cv::Mat> split_img(INPUT_CHANNEL);
-        cv::split(flt_img, split_img);
+        cv::split(dst_img, split_img);
 
         int channelLength = IMAGE_WIDTH * IMAGE_HEIGHT;
         for (int i = 0; i < INPUT_CHANNEL; ++i) {
@@ -153,16 +147,11 @@ void Model::ModelInference(std::vector<float> image_data, float *output) {
         sample::gLogInfo << "prepare images ERROR!" << std::endl;
         return;
     }
-    // DMA the input to the GPU,  execute the batch asynchronously, and DMA it back:
     cudaMemcpyAsync(buffers[0], image_data.data(), bufferSize[0], cudaMemcpyHostToDevice, stream);
-    // cudaMemcpy(buffers[0], image_data.data(), bufferSize[0], cudaMemcpyHostToDevice);
 
-    // do inference
-    // setBindingDimensions()
+    //gpu inference
     // context->executeV2(buffers);
     context->enqueueV2(buffers, stream, nullptr);
-    // context->execute(BATCH_SIZE, buffers);
     cudaMemcpyAsync(output, buffers[1], bufferSize[1], cudaMemcpyDeviceToHost, stream);
-    // cudaMemcpy(output, buffers[1], bufferSize[1], cudaMemcpyDeviceToHost);
     cudaStreamSynchronize(stream);
 }

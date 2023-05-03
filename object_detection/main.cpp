@@ -22,10 +22,16 @@ int main(int argc, char **argv)
         return -1;
     }
     std::string inputpath = argv[3];
+    std::string savepath = argv[4];
+    std::string video = argv[5];
     auto model = build_model(argv);
     if (model == nullptr)
         return -1;
     model->LoadEngine();
-    model->InferenceFolder(inputpath);
+    if (video == "true")
+        model->Inference(inputpath, savepath, true);
+    else
+        model->Inference(inputpath, savepath);
+    // model->Inference(inputpath, video);
     return 0;
 }

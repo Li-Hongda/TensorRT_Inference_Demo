@@ -28,6 +28,6 @@ int main(int argc, char** argv)
     YAML::Node root = YAML::LoadFile(config);
     YOLOv7 YOLOv7(root["yolov7"]);
     YOLOv7.LoadEngine();
-    YOLOv7.InferenceFolder(inputpath);
+    YOLOv7.Inference(inputpath, savepath);
     return 0;
 }

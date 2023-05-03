@@ -3,7 +3,7 @@
 
 #include "basemodel.h"
 
-struct Bbox {
+struct Box {
     float x;
     float y;
     float w;
@@ -75,23 +75,27 @@ namespace Color{
 
 
 struct Detections {
-    std::vector<Bbox> dets;
+    std::vector<Box> dets;
 };
 
 class Detection : public Model
 {
 public:
     explicit Detection(const YAML::Node &config);
-    std::vector<Detections> InferenceImages(std::vector<cv::Mat> &vec_img);
+    std::vector<Detections> InferenceImages(std::vector<cv::Mat> &imgBatch);
+    void Inference(const std::string &input_path, const std::string &save_path, const bool video) override;
+    virtual void Inference(const std::string &input_path, const std::string &save_path) override;
     // void Inference(const std::string &input_path, const bool video) override;
-    void InferenceFolder(const std::string &folder_name) override;
-    void Visualize(const std::vector<Detections> &detections, std::vector<cv::Mat> &vec_img,
-                     std::vector<std::string> image_name);
-    static float BoxIoU(const Bbox &det_a, const Bbox &det_b);
+    // void Inference(const std::string &input_path) override;
+    void Visualize(const std::vector<Detections> &detections, std::vector<cv::Mat> &imgBatch,
+                     std::vector<std::string> image_names);
+    void Visualize(const std::vector<Detections> &detections, std::vector<cv::Mat> &imgBatch,
+                     cv::String save_name, int fps, cv::Size size); 
+    static float BoxIoU(const Box &det_a, const Box &det_b);
 
 protected:
     virtual std::vector<Detections> PostProcess(const std::vector<cv::Mat> &vec_Mat, float *output)=0;
-    void NMS(std::vector<Bbox> &detections);
+    void NMS(std::vector<Box> &detections);
     // std::map<int, std::string> class_labels;
     int num_classes;
     float obj_threshold;
@@ -100,7 +104,6 @@ protected:
     std::vector<std::string> class_labels;
     std::vector<cv::Scalar> class_colors;
     std::vector<int> strides;
-    std::vector<int> num_anchors;
     int num_rows = 0;
 };
 

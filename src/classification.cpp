@@ -6,9 +6,9 @@ Classification::Classification(const YAML::Node &config) : Model(config) {
     num_classes = class_labels.size();
 }
 
-std::vector<ClassRes> Classification::InferenceImages(std::vector<cv::Mat> &vec_img) {
+std::vector<ClassRes> Classification::InferenceImages(std::vector<cv::Mat> &imgBatch) {
     auto t_start_pre = std::chrono::high_resolution_clock::now();
-    std::vector<float> image_data = PreProcess(vec_img);
+    std::vector<float> image_data = PreProcess(imgBatch);
     auto t_end_pre = std::chrono::high_resolution_clock::now();
     float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
     std::cout << "classification prepare image take: " << total_pre << " ms." << std::endl;
@@ -19,7 +19,7 @@ std::vector<ClassRes> Classification::InferenceImages(std::vector<cv::Mat> &vec_
     float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();
     std::cout << "classification inference take: " << total_inf << " ms." << std::endl;
     auto r_start = std::chrono::high_resolution_clock::now();
-    auto results = PostProcess(vec_img, output);
+    auto results = PostProcess(imgBatch, output);
     auto r_end = std::chrono::high_resolution_clock::now();
     float total_res = std::chrono::duration<float, std::milli>(r_end - r_start).count();
     std::cout << "classification postprocess take: " << total_res << " ms." << std::endl;
@@ -27,8 +27,8 @@ std::vector<ClassRes> Classification::InferenceImages(std::vector<cv::Mat> &vec_
     return results;
 }
 
-void Classification::InferenceFolder(const std::string &folder_name) {
-    std::vector<std::string> image_list = ReadFolder(folder_name);
+void Classification::InferenceFolder(const std::string &input_path) {
+    std::vector<std::string> image_list = ReadFolder(input_path);
     int index = 0;
     int batch_id = 0;
     std::vector<cv::Mat> vec_Mat(BATCH_SIZE);
@@ -66,16 +66,16 @@ std::vector<ClassRes> Classification::PostProcess(const std::vector<cv::Mat> &ve
         auto max_pos = std::max_element(out, out + outSize);
         result.classes = max_pos - out;
         result.prob = out[result.classes];
-        vec_result.push_back(result);
+        vec_result.emplace_back(result);
         index++;
     }
     return vec_result;
 }
 
-void Classification::Visualize(const std::vector<ClassRes> &results, std::vector<cv::Mat> &vec_img,
+void Classification::Visualize(const std::vector<ClassRes> &results, std::vector<cv::Mat> &imgBatch,
                         std::vector<std::string> image_names=std::vector<std::string>()) {
-    for (int i = 0; i < (int)vec_img.size(); i++) {
-        auto org_img = vec_img[i];
+    for (int i = 0; i < (int)imgBatch.size(); i++) {
+        auto org_img = imgBatch[i];
         if (!org_img.data)
             continue;
         auto result = results[i];

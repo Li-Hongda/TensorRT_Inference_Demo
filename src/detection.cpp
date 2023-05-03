@@ -5,13 +5,11 @@ Detection::Detection(const YAML::Node &config) : Model(config) {
     nms_threshold = config["nms_threshold"].as<float>();
     type = config["type"].as<std::string>();
     strides = config["strides"].as<std::vector<int>>();
-    num_anchors = config["num_anchors"].as<std::vector<int>>();
 
     int index = 0;
     for (const int &stride : strides)
     {
-        int num_anchor = num_anchors[index] !=0 ? num_anchors[index] : 1;
-        num_rows += int(IMAGE_HEIGHT / stride) * int(IMAGE_WIDTH / stride) * num_anchor;
+        num_rows += int(IMAGE_HEIGHT / stride) * int(IMAGE_WIDTH / stride) * 3;
         index+=1;
     }    
     
@@ -27,9 +25,9 @@ Detection::Detection(const YAML::Node &config) : Model(config) {
 
 }
 
-std::vector<Detections> Detection::InferenceImages(std::vector<cv::Mat> &vec_img) {
+std::vector<Detections> Detection::InferenceImages(std::vector<cv::Mat> &imgBatch) {
     auto t_start_pre = std::chrono::high_resolution_clock::now();
-    std::vector<float> image_data = PreProcess(vec_img);
+    std::vector<float> image_data = PreProcess(imgBatch);
     auto t_end_pre = std::chrono::high_resolution_clock::now();
     float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
     // sample::gLogInfo << "detection prepare image take: " << total_pre << " ms." << std::endl;
@@ -40,7 +38,7 @@ std::vector<Detections> Detection::InferenceImages(std::vector<cv::Mat> &vec_img
     float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();
     // sample::gLogInfo << "detection inference take: " << total_inf << " ms." << std::endl;
     auto r_start = std::chrono::high_resolution_clock::now();
-    auto boxes = PostProcess(vec_img, output);
+    auto boxes = PostProcess(imgBatch, output);
     auto r_end = std::chrono::high_resolution_clock::now();
     float total_res = std::chrono::duration<float, std::milli>(r_end - r_start).count();
     // sample::gLogInfo << "detection postprocess take: " << total_res << " ms." << std::endl;
@@ -48,97 +46,100 @@ std::vector<Detections> Detection::InferenceImages(std::vector<cv::Mat> &vec_img
     return boxes;
 }
 
-// void Detection::Inference(const std::string &input_path, const bool video) {
-//     // int ret;
-//     // ret = CheckDir(input_path);
-//     // if (ret == 0)
-//     //     InferenceFolder(input_path);
-//     if (video == true){
-//         int total_frames = 0;
+void Detection::Inference(const std::string &input_path, const cv::String &save_path, const bool video) {
 
-//         cv::VideoCapture capture;
-//         capture.open(input_path);
-// 		total_frames = capture.get(cv::CAP_PROP_FRAME_COUNT);
-// 	cv::Mat frame;	
-//     std::vector<cv::Mat> imgs_batch;
-//     int i = 0; // debug
-// 	int batchi = 0;
+    cv::VideoCapture capture;
+    capture.open(input_path);
+    cv::Size size = cv::Size((int)capture.get(cv::CAP_PROP_FRAME_WIDTH), (int)capture.get(cv::CAP_PROP_FRAME_HEIGHT));        
+    int fps = capture.get(cv::CAP_PROP_FPS);        
+    auto total_frames = capture.get(cv::CAP_PROP_FRAME_COUNT);
+    std::vector<cv::Mat> imgBatch;
+    imgBatch.reserve(BATCH_SIZE);
 
-// 	while (capture.isOpened())
-// 	{
-// 		// if (batchi >= total_batches && source != utils::InputStream::CAMERA)
-// 		// {
-// 		// 	break;
-// 		// }
-// 		if (imgs_batch.size() < BATCH_SIZE) // get input
-// 		{
-// 			capture.read(frame);
+    std::vector<Detections> dets;
+    dets.reserve(total_frames);
+    std::vector<cv::Mat> imgs;
+    imgs.reserve(total_frames);
 
-// 			if (frame.empty())
-// 			{
-// 				// sample::gLogWarning << "no more video or camera frame" << std::endl;
-// 				InferenceImages(frame);
-// 				imgs_batch.clear(); // clear
-// 				//sample::gLogInfo << imgs_batch.capacity() << std::endl;
-// 				batchi++;
-// 				break;
-// 			}	
-// 			else
-// 			{
-// 				imgs_batch.emplace_back(frame.clone()); 
-// 			}
-			
-// 		}
-// 		else // infer
-// 		{
-// 			task(yolo, param, imgs_batch, delay_time, batchi, is_show, is_save);
-// 			imgs_batch.clear(); // clear
-// 			//sample::gLogInfo << imgs_batch.capacity() << std::endl;
-// 			batchi++;
-// 		}
-// 	}		
-//         // totalBatches = (total_frames % param.batch_size == 0) ?
-// 		// 	(total_frames / param.batch_size) : (total_frames / param.batch_size + 1);
-//     }
-
-// }
-
-void Detection::InferenceFolder(const std::string &input_path) {
-    std::vector<std::string> image_list = ReadFolder(input_path);
     int index = 0;
-    int batch_id = 0;
-    std::vector<cv::Mat> imgBatch(BATCH_SIZE);
-    std::vector<std::string> imgInfo(BATCH_SIZE);
     float total_time = 0;
-    for (const std::string &image_name : image_list) {
-        index++;
-        // TODO: figure out why double free.
-        // sample::gLogInfo << "Processing: " << image_name << std::endl;
-        std::cout << "Processing: " << image_name << std::endl;
-        cv::Mat img = cv::imread(image_name);
-        if (img.data) {
+    cv::Mat frame;
 
-            cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
-            imgBatch[batch_id] = img.clone();
-            imgInfo[batch_id] = image_name;
-            batch_id++;
+    while (capture.isOpened())
+    {
+        index++;
+        if (imgBatch.size() < BATCH_SIZE) // get input
+        {
+            capture.read(frame);
+
+            if (frame.empty())
+            {
+                // sample::gLogWarning << "no more video or camera frame" << std::endl;
+                auto start_time = std::chrono::high_resolution_clock::now();
+                std::vector<Detections> det_results = InferenceImages(imgBatch);
+                auto end_time = std::chrono::high_resolution_clock::now();
+                dets.insert(dets.end(), det_results.begin(), det_results.end());
+                imgs.insert(imgs.end(), imgBatch.begin(), imgBatch.end());                    
+                imgBatch.clear(); // clear
+                total_time += std::chrono::duration<float, std::milli>(end_time - start_time).count();
+                break;
+            }
+            else
+            {
+                imgBatch.emplace_back(frame.clone());
+            }
         }
-        if (batch_id == BATCH_SIZE or index == image_list.size()) {
+        else // infer
+        {
             auto start_time = std::chrono::high_resolution_clock::now();
             auto det_results = InferenceImages(imgBatch);
             auto end_time = std::chrono::high_resolution_clock::now();
-            Visualize(det_results, imgBatch, imgInfo);
-            imgBatch = std::vector<cv::Mat>(BATCH_SIZE);
-            batch_id = 0;
-            total_time += std::chrono::duration<float, std::milli>(end_time - start_time).count();
+            dets.insert(dets.end(), det_results.begin(), det_results.end());
+            imgs.insert(imgs.end(), imgBatch.begin(), imgBatch.end());
+            total_time += std::chrono::duration<float, std::milli>(end_time - start_time).count(); 
+            imgBatch.clear(); 
         }
+    }
+    Visualize(dets, imgs, save_path, fps, size);
+
+}
+
+
+void Detection::Inference(const std::string &input_path, const std::string &save_path) {    
+    std::vector<std::string> image_list = ReadFolder(input_path);
+    
+    int index = 0;
+    std::vector<cv::Mat> imgBatch;
+    imgBatch.reserve(BATCH_SIZE);
+    std::vector<std::string> imgInfo;
+    imgInfo.reserve(BATCH_SIZE);
+    float total_time = 0;
+
+    for (const std::string &image_name : image_list) {
+        index++;
+        // TODO: figure out why double free.
+        if (imgBatch.size() < BATCH_SIZE and index < image_list.size()){
+            std::cout << "Processing: " << image_name << std::endl;
+            cv::Mat img = cv::imread(image_name);
+            imgBatch.emplace_back(img.clone());
+            auto save_name = replace(image_name, input_path, save_path);
+            imgInfo.emplace_back(save_name);
+        } 
+        
+        auto start_time = std::chrono::high_resolution_clock::now();
+        auto det_results = InferenceImages(imgBatch);
+        auto end_time = std::chrono::high_resolution_clock::now();
+        Visualize(det_results, imgBatch, imgInfo);
+        imgBatch.clear();
+        imgInfo.clear();
+        total_time += std::chrono::duration<float, std::milli>(end_time - start_time).count();
     }
     // sample::gLogInfo << "Average processing time is " << total_time / image_list.size() << "ms" << std::endl;
     std::cout << "Average processing time is " << total_time / image_list.size() << "ms" << std::endl;
 }
 
-void Detection::NMS(std::vector<Bbox> &detections) {
-    sort(detections.begin(), detections.end(), [=](const Bbox &left, const Bbox &right) {
+void Detection::NMS(std::vector<Box> &detections) {
+    sort(detections.begin(), detections.end(), [=](const Box &left, const Box &right) {
         return left.score > right.score;
     });
 
@@ -153,11 +154,11 @@ void Detection::NMS(std::vector<Bbox> &detections) {
             }
         }
 
-    detections.erase(std::remove_if(detections.begin(), detections.end(), [](const Bbox &det)
+    detections.erase(std::remove_if(detections.begin(), detections.end(), [](const Box &det)
     { return det.score == 0; }), detections.end());
 }
 
-float Detection::BoxIoU(const Bbox &det_a, const Bbox &det_b) {
+float Detection::BoxIoU(const Box &det_a, const Box &det_b) {
     cv::Point2f center_a(det_a.x, det_a.y);
     cv::Point2f center_b(det_b.x, det_b.y);
     cv::Point2f left_up(std::min(det_a.x - det_a.w / 2, det_b.x - det_b.w / 2),
@@ -180,28 +181,44 @@ float Detection::BoxIoU(const Bbox &det_a, const Bbox &det_b) {
         return inter_area / union_area - distance_d / distance_c;
 }
 
-void Detection::Visualize(const std::vector<Detections> &detections, std::vector<cv::Mat> &vec_img,
-                            std::vector<std::string> image_name=std::vector<std::string>()) {
-    for (int i = 0; i < (int)vec_img.size(); i++) {
-        auto org_img = vec_img[i];
-        if (!org_img.data)
+void Detection::Visualize(const std::vector<Detections> &detections, std::vector<cv::Mat> &imgBatch,
+                            std::vector<std::string> image_names=std::vector<std::string>()) {
+    for (int i = 0; i < (int)imgBatch.size(); i++) {
+        auto img = imgBatch[i];
+        if (!img.data)
             continue;
-        auto rects = detections[i].dets;
-        cv::cvtColor(org_img, org_img, cv::COLOR_BGR2RGB);
-        for(const auto &rect : rects) {
-            char t[256];
-            sprintf(t, "%.2f", rect.score);
-            std::string name = class_labels[rect.label] + "-" + t;
-            cv::putText(org_img, name, cv::Point(rect.x - rect.w / 2, rect.y - rect.h / 2 - 5),
-                    cv::FONT_HERSHEY_COMPLEX, 0.7, class_colors[rect.label], 2);
-            cv::Rect rst(rect.x - rect.w / 2, rect.y - rect.h / 2, rect.w, rect.h);
-            cv::rectangle(org_img, rst, class_colors[rect.label], 2, cv::LINE_8, 0);
+        auto bboxes = detections[i].dets;
+        for(const auto &bbox : bboxes) {
+            auto score = cv::format("%.3f", bbox.score);
+            std::string text = class_labels[bbox.label] + "|" + score;
+            cv::putText(img, text, cv::Point(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2 - 5),
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, class_colors[bbox.label], 2);
+            cv::Rect rect(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2, bbox.w, bbox.h);
+            cv::rectangle(img, rect, class_colors[bbox.label], 2, cv::LINE_8, 0);
         }
-        if (!image_name.empty()) {
-            int pos = image_name[i].find_last_of('.');
-            std::string rst_name = image_name[i].insert(pos, "_");
-            // sample::gLogInfo << rst_name << std::endl;
-            cv::imwrite(rst_name, org_img);
-        }
+        std::string img_name = image_names[i];
+        cv::imwrite(img_name, img);
     }
+}
+
+void Detection::Visualize(const std::vector<Detections> &detections, std::vector<cv::Mat> &frames,
+                            const cv::String save_name, int fps, cv::Size size) {
+    auto fourcc = cv::VideoWriter::fourcc('m','p','4','v');
+    cv::VideoWriter writer(save_name, fourcc, fps, size, true);
+    for (int i = 0; i < (int)frames.size(); i++){
+        auto frame = frames[i];
+        if (!frame.data)
+            continue;
+        auto bboxes = detections[i].dets;
+        for(const auto &bbox : bboxes) {
+            auto score = cv::format("%.3f", bbox.score);
+            std::string text = class_labels[bbox.label] + "|" + score;
+            cv::putText(frame, text, cv::Point(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2 - 5),
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, class_colors[bbox.label], 2);
+            cv::Rect rect(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2, bbox.w, bbox.h);
+            cv::rectangle(frame, rect, class_colors[bbox.label], 2, cv::LINE_8, 0);
+        }        
+        writer.write(frame);
+    }
+    writer.release();    
 }

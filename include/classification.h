@@ -12,9 +12,9 @@ class Classification : public Model
 {
 public:
     explicit Classification(const YAML::Node &config);
-    std::vector<ClassRes> InferenceImages(std::vector<cv::Mat> &vec_img);
-    void InferenceFolder(const std::string &folder_name) override;
-    void Visualize(const std::vector<ClassRes> &results, std::vector<cv::Mat> &vec_img,
+    std::vector<ClassRes> InferenceImages(std::vector<cv::Mat> &imgBatch);
+    void InferenceFolder(const std::string &input_path) override;
+    void Visualize(const std::vector<ClassRes> &results, std::vector<cv::Mat> &imgBatch,
                      std::vector<std::string> image_names);
 
 protected:

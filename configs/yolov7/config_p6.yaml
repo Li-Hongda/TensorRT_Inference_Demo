@@ -1,8 +1,10 @@
 yolov7:
     type:         "coco80"    
-    onnx_file:     "../weights/yolov7-w6.onnx"
-    engine_file:   "../weights/yolov7-w6.trt"
-    labels_file:   "../configs/labels/coco.names"
+    onnx_file:     "weights/yolov7-w6.onnx"
+    engine_file:   "weights/yolov7-w6.trt"
+    save_path:     "object_detection/yolov7-w6/results/images"
+    type:          "coco80"
+    mode:          "fp32"    
     BATCH_SIZE:    1
     INPUT_CHANNEL: 3
     IMAGE_WIDTH:   1280
@@ -10,6 +12,5 @@ yolov7:
     obj_threshold: 0.4
     nms_threshold: 0.45
     strides:       [8, 16, 32, 64]
-    num_anchors:   [3,  3,  3,  3]
     img_mean:      [ 0, 0, 0 ]
     img_std:       [ 1, 1, 1 ]

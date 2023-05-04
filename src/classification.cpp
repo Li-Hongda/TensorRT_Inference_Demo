@@ -12,7 +12,7 @@ std::vector<ClassRes> Classification::InferenceImages(std::vector<cv::Mat> &imgB
     auto t_end_pre = std::chrono::high_resolution_clock::now();
     float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
     std::cout << "classification prepare image take: " << total_pre << " ms." << std::endl;
-    auto *output = new float[outSize * BATCH_SIZE];;
+    auto *output = new float[outSize * batchSize];;
     auto t_start = std::chrono::high_resolution_clock::now();
     ModelInference(image_data, output);
     auto t_end = std::chrono::high_resolution_clock::now();
@@ -28,11 +28,11 @@ std::vector<ClassRes> Classification::InferenceImages(std::vector<cv::Mat> &imgB
 }
 
 void Classification::InferenceFolder(const std::string &input_path) {
-    std::vector<std::string> image_list = ReadFolder(input_path);
+    std::vector<std::string> image_list = get_names(input_path);
     int index = 0;
     int batch_id = 0;
-    std::vector<cv::Mat> vec_Mat(BATCH_SIZE);
-    std::vector<std::string> vec_name(BATCH_SIZE);
+    std::vector<cv::Mat> vec_Mat(batchSize);
+    std::vector<std::string> vec_name(batchSize);
     float total_time = 0;
     for (const std::string &image_name : image_list) {
         index++;
@@ -44,12 +44,12 @@ void Classification::InferenceFolder(const std::string &input_path) {
             vec_name[batch_id] = image_name;
             batch_id++;
         }
-        if (batch_id == BATCH_SIZE or index == image_list.size()) {
+        if (batch_id == batchSize or index == image_list.size()) {
             auto start_time = std::chrono::high_resolution_clock::now();
             auto cls_results = InferenceImages(vec_Mat);
             auto end_time = std::chrono::high_resolution_clock::now();
             Visualize(cls_results, vec_Mat, vec_name);
-            vec_Mat = std::vector<cv::Mat>(BATCH_SIZE);
+            vec_Mat = std::vector<cv::Mat>(batchSize);
             batch_id = 0;
             total_time += std::chrono::duration<float, std::milli>(end_time - start_time).count();
         }

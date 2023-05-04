@@ -3,15 +3,6 @@
 
 #include "basemodel.h"
 
-struct Box {
-    float x;
-    float y;
-    float w;
-    float h;
-    int label;
-    float score;
-};
-
 namespace Category{
     const std::vector<std::string> coco80 = {
         "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
@@ -34,7 +25,6 @@ namespace Category{
         "book","clock","vase","scissors","teddy bear","hair drier","toothbrush","hair brush" 
     };    
 }
-
 
 namespace Color{
     const std::vector<cv::Scalar> coco80{ 
@@ -73,6 +63,14 @@ namespace Color{
     };    
 };
 
+struct Box {
+    float x;
+    float y;
+    float w;
+    float h;
+    int label;
+    float score;
+};
 
 struct Detections {
     std::vector<Box> dets;
@@ -96,7 +94,6 @@ public:
 protected:
     virtual std::vector<Detections> PostProcess(const std::vector<cv::Mat> &vec_Mat, float *output)=0;
     void NMS(std::vector<Box> &detections);
-    // std::map<int, std::string> class_labels;
     int num_classes;
     float obj_threshold;
     float nms_threshold;

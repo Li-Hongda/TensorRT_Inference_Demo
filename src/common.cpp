@@ -3,7 +3,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-std::vector<std::string> ReadFolder(const std::string &image_path)
+std::vector<std::string> get_names(const std::string &image_path)
 {
     std::vector<std::string> image_names;
     auto dir = opendir(image_path.c_str());
@@ -37,35 +37,43 @@ std::string replace(std::string str, const std::string& from, const std::string&
     return str;
 }
 
-std::map<int, std::string> ReadImageNetLabel(const std::string &fileName)
-{
-    std::map<int, std::string> imagenet_label;
-    std::ifstream file(fileName);
-    if (!file.is_open())
-    {
-        std::cout << "read file error: " << fileName << std::endl;
-    }
-    std::string strLine;
-    while (getline(file, strLine))
-    {
-        int pos1 = strLine.find(":");
-        std::string first = strLine.substr(0, pos1);
-        int pos2 = strLine.find_last_of("'");
-        std::string second = strLine.substr(pos1 + 3, pos2 - pos1 - 3);
-        imagenet_label.insert({atoi(first.c_str()), second});
-    }
-    file.close();
-    return imagenet_label;
+static bool isPathExists(const std::string& path){
+    struct stat   buffer;
+    return (stat (path.c_str(), &buffer) == 0);
 }
 
-int CheckDir(const std::string &path){
-    int ret;
-    struct stat st;
-    if (stat(path.c_str(), &st) == 0) {
-        if (S_ISDIR(st.st_mode)) {
-            return 0;
-        } else {
-            return -1;
-        }
-    }
+static bool isFile(const std::string& filename) {
+    struct stat   buffer;
+    return S_ISREG(buffer.st_mode);
 }
+ 
+static bool isDirectory(const std::string& filefodler) {
+    struct stat   buffer;
+    return S_ISDIR(buffer.st_mode);
+}
+
+int check_dir(const std::string & path, const bool is_mkdir) noexcept {
+    DIR *p_dir;
+    struct dirent *entry;
+    if(isPathExists(path)){
+        if(isDirectory(path)){
+            if((p_dir = opendir(path.c_str())) == NULL ) {  
+                std::cout << "Opendir error: " << strerror(errno) << std::endl;
+                return -1;  
+            }  
+    
+            while((entry = readdir(p_dir)) != NULL){
+                std::string file_name = path + "/" + entry->d_name;
+                if((0 != strcmp(entry->d_name, ".")) && (0 != strcmp(entry->d_name, "..")))
+                {
+                    remove(file_name.c_str());
+                }
+            }
+            closedir(p_dir);
+            rmdir(path.c_str());
+            mkdir(path.c_str(), 00700);
+        }
+    } else {
+        mkdir(path.c_str(), 00700);
+    }
+}   

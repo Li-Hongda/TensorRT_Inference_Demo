@@ -4,12 +4,12 @@ Model::Model(const YAML::Node &config) {
     onnx_file = config["onnx_file"].as<std::string>();
     engine_file = config["engine_file"].as<std::string>();
     mode = config["mode"].as<std::string>();
-    BATCH_SIZE = config["BATCH_SIZE"].as<int>();
-    INPUT_CHANNEL = config["INPUT_CHANNEL"].as<int>();
-    IMAGE_WIDTH = config["IMAGE_WIDTH"].as<int>();
-    IMAGE_HEIGHT = config["IMAGE_HEIGHT"].as<int>();
-    img_mean = config["img_mean"].as<std::vector<float>>();
-    img_std = config["img_std"].as<std::vector<float>>();
+    batchSize = config["batchSize"].as<int>();
+    inputChannel = config["inputChannel"].as<int>();
+    imageWidth = config["imageWidth"].as<int>();
+    imageHeight = config["imageHeight"].as<int>();
+    imgMean = config["imgMean"].as<std::vector<float>>();
+    imgStd = config["imgStd"].as<std::vector<float>>();
 }
 
 Model::~Model() = default;
@@ -57,7 +57,8 @@ bool Model::ReadTrtFile() {
     std::string cached_engine;
     std::fstream file;
     // sample::gLogInfo << "loading filename from:" << engine_file << std::endl;
-    nvinfer1::IRuntime *trtRuntime;
+    std::unique_ptr<nvinfer1::IRuntime> trtRuntime = 
+        std::unique_ptr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(sample::gLogger.getTRTLogger()));
     file.open(engine_file, std::ios::binary | std::ios::in);
 
     if (!file.is_open()) {
@@ -72,8 +73,8 @@ bool Model::ReadTrtFile() {
     }
     file.close();
 
-    trtRuntime = nvinfer1::createInferRuntime(sample::gLogger.getTRTLogger());
-    engine = trtRuntime->deserializeCudaEngine(cached_engine.data(), cached_engine.size(), nullptr);
+    // trtRuntime = nvinfer1::createInferRuntime(sample::gLogger.getTRTLogger());
+    this->engine = std::unique_ptr<nvinfer1::ICudaEngine>(trtRuntime->deserializeCudaEngine(cached_engine.data(), cached_engine.size(), nullptr));
     // sample::gLogInfo << "deserialize done" << std::endl;
 
 }
@@ -84,57 +85,55 @@ void Model::LoadEngine() {
     existEngine.open(engine_file, std::ios::in);
     if (existEngine) {
         ReadTrtFile();
-        assert(engine != nullptr);
+        // assert(this->engine != nullptr);
     } else {
         OnnxToTRTModel();
-        assert(engine != nullptr);
+        ReadTrtFile();
+        assert(this->engine != nullptr);
     }
 
-    context = engine->createExecutionContext();
-    assert(context != nullptr);
+    this->context = std::unique_ptr<nvinfer1::IExecutionContext>(this->engine->createExecutionContext());
+    assert(this->context != nullptr);
 
     //get buffers
-    assert(engine->getNbBindings() == 2);
-    int nbBindings = engine->getNbBindings();
+    assert(this->engine->getNbBindings() == 2);
+    int nbBindings = this->engine->getNbBindings();
     bufferSize.resize(nbBindings);
     for (int i = 0; i < nbBindings; ++i) {
-        nvinfer1::Dims dims = engine->getBindingDimensions(i);
-        nvinfer1::DataType dtype = engine->getBindingDataType(i);
-        int64_t totalSize = volume(dims) * getElementSize(dtype);
+        nvinfer1::Dims dims = this->engine->getBindingDimensions(i);
+        nvinfer1::DataType dtype = this->engine->getBindingDataType(i);
+        int64_t totalSize = sample::volume(dims) * sample::dataTypeSize(dtype);
         bufferSize[i] = totalSize;
         cudaMalloc(&buffers[i], totalSize);
     }
     //get stream
     cudaStreamCreate(&stream);
-    outSize = int(bufferSize[1] / sizeof(float) / BATCH_SIZE);
+    outSize = int(bufferSize[1] / sizeof(float) / batchSize);
 }
 
 std::vector<float> Model::PreProcess(std::vector<cv::Mat> &imgBatch) {
-    std::vector<float> result(BATCH_SIZE * IMAGE_WIDTH * IMAGE_HEIGHT * INPUT_CHANNEL);
+    std::vector<float> result(batchSize * imageWidth * imageHeight * inputChannel);
     float *data = result.data();
     for (const cv::Mat &img : imgBatch) {
         if (!img.data)
             continue;
         cv::Mat dst_img;
-        if (INPUT_CHANNEL == 1)
+        if (inputChannel == 1)
             cv::cvtColor(img, dst_img, cv::COLOR_RGB2GRAY);
-        else if (INPUT_CHANNEL == 3)
+        else if (inputChannel == 3)
             cv::cvtColor(img, dst_img, cv::COLOR_BGR2RGB);
-        float ratio = std::min(float(IMAGE_WIDTH) / float(img.cols), float(IMAGE_HEIGHT) / float(img.rows));
-        dst_img = cv::Mat::zeros(cv::Size(IMAGE_WIDTH, IMAGE_HEIGHT), CV_8UC3);
+        float ratio = std::min(float(imageWidth) / float(img.cols), float(imageHeight) / float(img.rows));
+        dst_img = cv::Mat::zeros(cv::Size(imageWidth, imageHeight), CV_8UC3);
         cv::Mat rsz_img;
         cv::resize(img, rsz_img, cv::Size(), ratio, ratio);
         rsz_img.copyTo(dst_img(cv::Rect(0, 0, rsz_img.cols, rsz_img.rows)));
-        if (INPUT_CHANNEL == 1)
-            dst_img.convertTo(dst_img, CV_32FC1, 1 / 255.0);
-        else if (INPUT_CHANNEL == 3)
-            dst_img.convertTo(dst_img, CV_32FC3, 1 / 255.0);
-        std::vector<cv::Mat> split_img(INPUT_CHANNEL);
+        dst_img.convertTo(dst_img, CV_32F, 1 / 255.0);
+        std::vector<cv::Mat> split_img(inputChannel);
         cv::split(dst_img, split_img);
 
-        int channelLength = IMAGE_WIDTH * IMAGE_HEIGHT;
-        for (int i = 0; i < INPUT_CHANNEL; ++i) {
-            split_img[i] = (split_img[i] - img_mean[i]) / img_std[i];
+        int channelLength = imageWidth * imageHeight;
+        for (int i = 0; i < inputChannel; ++i) {
+            split_img[i] = (split_img[i] - imgMean[i]) / imgStd[i];
             memcpy(data, split_img[i].data, channelLength * sizeof(float));
             data += channelLength;
         }
@@ -150,8 +149,8 @@ void Model::ModelInference(std::vector<float> image_data, float *output) {
     cudaMemcpyAsync(buffers[0], image_data.data(), bufferSize[0], cudaMemcpyHostToDevice, stream);
 
     //gpu inference
-    // context->executeV2(buffers);
-    context->enqueueV2(buffers, stream, nullptr);
+    this->context->executeV2(buffers);
+    // this->context->enqueueV2(buffers, stream, nullptr);
     cudaMemcpyAsync(output, buffers[1], bufferSize[1], cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
 }

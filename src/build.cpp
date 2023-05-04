@@ -1,9 +1,9 @@
 #include "build.h"
 
-std::shared_ptr<Model> build_model(char **argv) {
-    std::string model_arch = argv[1];
-    std::string config_file = argv[2];
-    YAML::Node root = YAML::LoadFile(config_file);
+std::shared_ptr<Model> build_model(std::string model_arch, std::string cfg) {
+    // std::string model_arch = argv[1];
+    // std::string config_file = argv[2];
+    YAML::Node root = YAML::LoadFile(cfg);
     auto model = std::shared_ptr<Model>();
     // if (model_arch == "alexnet")
     //     model = std::make_shared<AlexNet>(root[model_arch]);

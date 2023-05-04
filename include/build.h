@@ -29,6 +29,6 @@
 // #include "YOLOv6.h"
 #include "yolov7.h"
 
-std::shared_ptr<Model> build_model(char **argv);
-
+std::shared_ptr<Model> build_model(std::string model_arch, std::string cfg);
+// char **argv
 #endif

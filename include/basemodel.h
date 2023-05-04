@@ -22,17 +22,19 @@ protected:
     std::string onnx_file;
     std::string engine_file;
     std::string mode;
-    int BATCH_SIZE;
-    int INPUT_CHANNEL;
-    int IMAGE_WIDTH;
-    int IMAGE_HEIGHT;
-    nvinfer1::ICudaEngine *engine = nullptr;
-    nvinfer1::IExecutionContext *context = nullptr;
+    int batchSize;
+    int inputChannel;
+    int imageWidth;
+    int imageHeight;
+    std::shared_ptr<nvinfer1::ICudaEngine> engine;
+    std::unique_ptr<nvinfer1::IExecutionContext> context;    
+    // nvinfer1::ICudaEngine *engine = nullptr;
+    // nvinfer1::IExecutionContext *context = nullptr;
     void *buffers[2];
     std::vector<int64_t> bufferSize;
     cudaStream_t stream;
     int outSize;
-    std::vector<float> img_mean;
-    std::vector<float> img_std;
+    std::vector<float> imgMean;
+    std::vector<float> imgStd;
 };
 #endif

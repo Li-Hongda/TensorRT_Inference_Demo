@@ -17,6 +17,7 @@
 
 // tensorrt
 #include<logger.h>
+#include<sampleUtils.h>
 #include<parserOnnxConfig.h>
 #include<NvInfer.h>
 // #include "NvInferPlugin.h"
@@ -27,7 +28,7 @@
 // #include <thrust/sort.h>
 // #include<math.h>
 // #include<cuda_device_runtime_api.h>
-// #include<cuda_runtime_api.h>
+#include<cuda_runtime_api.h>
 // #include<device_launch_parameters.h>
 // #include<device_atomic_functions.h>
 
@@ -55,42 +56,8 @@
 
 #include "yaml-cpp/yaml.h"
 
-constexpr long long int operator"" _GiB(long long unsigned int val)
-{
-    return val * (1 << 30);
-}
-constexpr long long int operator"" _MiB(long long unsigned int val)
-{
-    return val * (1 << 20);
-}
-constexpr long long int operator"" _KiB(long long unsigned int val)
-{
-    return val * (1 << 10);
-}
-
-inline unsigned int getElementSize(nvinfer1::DataType t)
-{
-    switch (t)
-    {
-        case nvinfer1::DataType::kINT32: return 4;
-        case nvinfer1::DataType::kFLOAT: return 4;
-        case nvinfer1::DataType::kHALF: return 2;
-        case nvinfer1::DataType::kBOOL:
-        case nvinfer1::DataType::kINT8: return 1;
-    }
-    throw std::runtime_error("Invalid DataType.");
-    return 0;
-}
-
-inline int64_t volume(const nvinfer1::Dims& d)
-{
-    return std::accumulate(d.d, d.d + d.nbDims, 1, std::multiplies<int64_t>());
-}
-
-void setReportableSeverity(sample::Severity severity);
-std::vector<std::string> ReadFolder(const std::string &image_path);
+std::vector<std::string> get_names(const std::string &image_path);
 std::string replace(std::string str, const std::string& from, const std::string& to);
-std::map<int, std::string> ReadImageNetLabel(const std::string &fileName);
-int CheckDir(const std::string &path);
+int check_dir(const std::string &path, const bool is_mkdir);
 
 #endif

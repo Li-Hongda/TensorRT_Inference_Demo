@@ -9,7 +9,7 @@ Detection::Detection(const YAML::Node &config) : Model(config) {
     int index = 0;
     for (const int &stride : strides)
     {
-        num_rows += int(IMAGE_HEIGHT / stride) * int(IMAGE_WIDTH / stride) * 3;
+        num_rows += int(imageHeight / stride) * int(imageWidth / stride) * 3;
         index+=1;
     }    
     
@@ -31,7 +31,7 @@ std::vector<Detections> Detection::InferenceImages(std::vector<cv::Mat> &imgBatc
     auto t_end_pre = std::chrono::high_resolution_clock::now();
     float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
     // sample::gLogInfo << "detection prepare image take: " << total_pre << " ms." << std::endl;
-    auto *output = new float[outSize * BATCH_SIZE];;
+    auto *output = new float[outSize * batchSize];;
     auto t_start = std::chrono::high_resolution_clock::now();
     ModelInference(image_data, output);
     auto t_end = std::chrono::high_resolution_clock::now();
@@ -54,7 +54,7 @@ void Detection::Inference(const std::string &input_path, const cv::String &save_
     int fps = capture.get(cv::CAP_PROP_FPS);        
     auto total_frames = capture.get(cv::CAP_PROP_FRAME_COUNT);
     std::vector<cv::Mat> imgBatch;
-    imgBatch.reserve(BATCH_SIZE);
+    imgBatch.reserve(batchSize);
 
     std::vector<Detections> dets;
     dets.reserve(total_frames);
@@ -68,13 +68,13 @@ void Detection::Inference(const std::string &input_path, const cv::String &save_
     while (capture.isOpened())
     {
         index++;
-        if (imgBatch.size() < BATCH_SIZE) // get input
+        if (imgBatch.size() < batchSize) // get input
         {
             capture.read(frame);
 
             if (frame.empty())
             {
-                // sample::gLogWarning << "no more video or camera frame" << std::endl;
+                sample::gLogWarning << "no more video or camera frame" << std::endl;
                 auto start_time = std::chrono::high_resolution_clock::now();
                 std::vector<Detections> det_results = InferenceImages(imgBatch);
                 auto end_time = std::chrono::high_resolution_clock::now();
@@ -106,19 +106,19 @@ void Detection::Inference(const std::string &input_path, const cv::String &save_
 
 
 void Detection::Inference(const std::string &input_path, const std::string &save_path) {    
-    std::vector<std::string> image_list = ReadFolder(input_path);
+    std::vector<std::string> image_list = get_names(input_path);
     
     int index = 0;
     std::vector<cv::Mat> imgBatch;
-    imgBatch.reserve(BATCH_SIZE);
+    imgBatch.reserve(batchSize);
     std::vector<std::string> imgInfo;
-    imgInfo.reserve(BATCH_SIZE);
+    imgInfo.reserve(batchSize);
     float total_time = 0;
 
     for (const std::string &image_name : image_list) {
         index++;
         // TODO: figure out why double free.
-        if (imgBatch.size() < BATCH_SIZE and index < image_list.size()){
+        if (imgBatch.size() < batchSize and index < image_list.size()){
             std::cout << "Processing: " << image_name << std::endl;
             cv::Mat img = cv::imread(image_name);
             imgBatch.emplace_back(img.clone());
@@ -134,7 +134,7 @@ void Detection::Inference(const std::string &input_path, const std::string &save
         imgInfo.clear();
         total_time += std::chrono::duration<float, std::milli>(end_time - start_time).count();
     }
-    // sample::gLogInfo << "Average processing time is " << total_time / image_list.size() << "ms" << std::endl;
+    // sample::gLogError << "Average processing time is " << total_time / image_list.size() << "ms" << std::endl;
     std::cout << "Average processing time is " << total_time / image_list.size() << "ms" << std::endl;
 }
 

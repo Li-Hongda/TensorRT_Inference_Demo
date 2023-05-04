@@ -9,7 +9,7 @@ std::vector<Detections> YOLO::PostProcess(const std::vector<cv::Mat> &vec_Mat, f
     for (const cv::Mat &src_img : vec_Mat)
     {
         Detections result;
-        float ratio = float(src_img.cols) / float(IMAGE_WIDTH) > float(src_img.rows) / float(IMAGE_HEIGHT)  ? float(src_img.cols) / float(IMAGE_WIDTH) : float(src_img.rows) / float(IMAGE_HEIGHT);
+        float ratio = float(src_img.cols) / float(imageWidth) > float(src_img.rows) / float(imageHeight)  ? float(src_img.cols) / float(imageWidth) : float(src_img.rows) / float(imageHeight);
         float *out = output + index * outSize;
         for (int position = 0; position < num_rows; position++) {
             float *row = out + position * (num_classes + 5);

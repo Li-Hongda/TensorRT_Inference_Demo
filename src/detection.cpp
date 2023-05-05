@@ -31,12 +31,13 @@ std::vector<Detections> Detection::InferenceImages(std::vector<cv::Mat> &imgBatc
     auto t_end_pre = std::chrono::high_resolution_clock::now();
     float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
     // sample::gLogInfo << "detection prepare image take: " << total_pre << " ms." << std::endl;
-    auto *output = new float[outSize * batchSize];;
+    auto *output = new float[outSize * batchSize];
+
     auto t_start = std::chrono::high_resolution_clock::now();
     ModelInference(image_data, output);
     auto t_end = std::chrono::high_resolution_clock::now();
     float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();
-    // sample::gLogInfo << "detection inference take: " << total_inf << " ms." << std::endl;
+    std::cout << "detection inference take: " << total_inf << " ms." << std::endl;
     auto r_start = std::chrono::high_resolution_clock::now();
     auto boxes = PostProcess(imgBatch, output);
     auto r_end = std::chrono::high_resolution_clock::now();
@@ -104,7 +105,6 @@ void Detection::Inference(const std::string &input_path, const cv::String &save_
 
 }
 
-
 void Detection::Inference(const std::string &input_path, const std::string &save_path) {    
     std::vector<std::string> image_list = get_names(input_path);
     
@@ -118,24 +118,26 @@ void Detection::Inference(const std::string &input_path, const std::string &save
     for (const std::string &image_name : image_list) {
         index++;
         // TODO: figure out why double free.
-        if (imgBatch.size() < batchSize and index < image_list.size()){
-            std::cout << "Processing: " << image_name << std::endl;
-            cv::Mat img = cv::imread(image_name);
-            imgBatch.emplace_back(img.clone());
-            auto save_name = replace(image_name, input_path, save_path);
-            imgInfo.emplace_back(save_name);
-        } 
+        std::cout << "Processing: " << image_name << std::endl;
+        cv::Mat img = cv::imread(image_name);
+        imgBatch.emplace_back(img.clone());
+        auto save_name = replace(image_name, input_path, save_path);
+        imgInfo.emplace_back(save_name);
         
-        auto start_time = std::chrono::high_resolution_clock::now();
-        auto det_results = InferenceImages(imgBatch);
-        auto end_time = std::chrono::high_resolution_clock::now();
-        Visualize(det_results, imgBatch, imgInfo);
-        imgBatch.clear();
-        imgInfo.clear();
-        total_time += std::chrono::duration<float, std::milli>(end_time - start_time).count();
+        if (imgBatch.size() == batchSize or index == image_list.size()){
+            auto start_time = std::chrono::high_resolution_clock::now();
+            auto det_results = InferenceImages(imgBatch);
+            auto end_time = std::chrono::high_resolution_clock::now();
+            total_time += std::chrono::duration<float, std::milli>(end_time - start_time).count();
+            Visualize(det_results, imgBatch, imgInfo);
+            imgBatch.clear();
+            imgInfo.clear();
+        }
+        
     }
     // sample::gLogError << "Average processing time is " << total_time / image_list.size() << "ms" << std::endl;
     std::cout << "Average processing time is " << total_time / image_list.size() << "ms" << std::endl;
+    std::cout << "Average FPS is " << 1000 * image_list.size() / total_time << std::endl;
 }
 
 void Detection::NMS(std::vector<Box> &detections) {
@@ -148,7 +150,7 @@ void Detection::NMS(std::vector<Box> &detections) {
         {
             if (detections[i].label == detections[j].label)
             {
-                float iou = BoxIoU(detections[i], detections[j]);
+                float iou = DIoU(detections[i], detections[j]);
                 if (iou > nms_threshold)
                     detections[j].score = 0;
             }
@@ -158,19 +160,19 @@ void Detection::NMS(std::vector<Box> &detections) {
     { return det.score == 0; }), detections.end());
 }
 
-float Detection::BoxIoU(const Box &det_a, const Box &det_b) {
+float Detection::DIoU(const Box &det_a, const Box &det_b) {
     cv::Point2f center_a(det_a.x, det_a.y);
     cv::Point2f center_b(det_b.x, det_b.y);
     cv::Point2f left_up(std::min(det_a.x - det_a.w / 2, det_b.x - det_b.w / 2),
                         std::min(det_a.y - det_a.h / 2, det_b.y - det_b.h / 2));
     cv::Point2f right_down(std::max(det_a.x + det_a.w / 2, det_b.x + det_b.w / 2),
                            std::max(det_a.y + det_a.h / 2, det_b.y + det_b.h / 2));
-    float distance_d = (center_a - center_b).x * (center_a - center_b).x + (center_a - center_b).y * (center_a - center_b).y;
-    float distance_c = (left_up - right_down).x * (left_up - right_down).x + (left_up - right_down).y * (left_up - right_down).y;
-    float inter_l = det_a.x - det_a.w / 2 > det_b.x - det_b.w / 2 ? det_a.x - det_a.w / 2 : det_b.x - det_b.w / 2;
-    float inter_t = det_a.y - det_a.h / 2 > det_b.y - det_b.h / 2 ? det_a.y - det_a.h / 2 : det_b.y - det_b.h / 2;
-    float inter_r = det_a.x + det_a.w / 2 < det_b.x + det_b.w / 2 ? det_a.x + det_a.w / 2 : det_b.x + det_b.w / 2;
-    float inter_b = det_a.y + det_a.h / 2 < det_b.y + det_b.h / 2 ? det_a.y + det_a.h / 2 : det_b.y + det_b.h / 2;
+    float distance_d = pow((center_a - center_b).x , 2) + pow((center_a - center_b).y, 2) ;
+    float distance_c = pow((left_up - right_down).x, 2) + pow((left_up - right_down).y, 2);
+    float inter_l = std::max(det_a.x - det_a.w / 2, det_b.x - det_b.w / 2);
+    float inter_t = std::max(det_a.y - det_a.h / 2, det_b.y - det_b.h / 2);
+    float inter_r = std::min(det_a.x + det_a.w / 2, det_b.x + det_b.w / 2);
+    float inter_b = std::min(det_a.y + det_a.h / 2, det_b.y + det_b.h / 2);
     if (inter_b < inter_t || inter_r < inter_l)
         return 0;
     float inter_area = (inter_b - inter_t) * (inter_r - inter_l);

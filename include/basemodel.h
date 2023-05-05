@@ -35,6 +35,6 @@ protected:
     cudaStream_t stream;
     int outSize;
     std::vector<float> imgMean;
-    std::vector<float> imgStd;
+    std::vector<float> imgStd;   
 };
 #endif

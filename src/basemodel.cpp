@@ -21,6 +21,7 @@ void Model::OnnxToTRTModel() {
 
     const auto explicitBatch = 1U << static_cast<uint32_t>(nvinfer1::NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
     auto network = builder->createNetworkV2(explicitBatch);
+    // auto network = builder->createNetworkV2(0U);
     auto config = builder->createBuilderConfig();
 
     auto parser = nvonnxparser::createParser(*network, sample::gLogger.getTRTLogger());
@@ -28,7 +29,7 @@ void Model::OnnxToTRTModel() {
         sample::gLogError << "Failure while parsing ONNX file" << std::endl;
     }
     // Build the engine
-    config->setMemoryPoolLimit(nvinfer1::MemoryPoolType::kWORKSPACE, 1U << 30);
+    // config->setMemoryPoolLimit(nvinfer1::MemoryPoolType::kWORKSPACE, 1U << 30);
     if (mode == "fp16")
         config->setFlag(nvinfer1::BuilderFlag::kFP16);
     else if  (mode == "int8")
@@ -57,8 +58,7 @@ bool Model::ReadTrtFile() {
     std::string cached_engine;
     std::fstream file;
     // sample::gLogInfo << "loading filename from:" << engine_file << std::endl;
-    std::unique_ptr<nvinfer1::IRuntime> trtRuntime = 
-        std::unique_ptr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(sample::gLogger.getTRTLogger()));
+    nvinfer1::IRuntime *trtRuntime;
     file.open(engine_file, std::ios::binary | std::ios::in);
 
     if (!file.is_open()) {
@@ -73,10 +73,9 @@ bool Model::ReadTrtFile() {
     }
     file.close();
 
-    // trtRuntime = nvinfer1::createInferRuntime(sample::gLogger.getTRTLogger());
+    trtRuntime = nvinfer1::createInferRuntime(sample::gLogger.getTRTLogger());
     this->engine = std::unique_ptr<nvinfer1::ICudaEngine>(trtRuntime->deserializeCudaEngine(cached_engine.data(), cached_engine.size(), nullptr));
     // sample::gLogInfo << "deserialize done" << std::endl;
-
 }
 
 void Model::LoadEngine() {
@@ -99,6 +98,8 @@ void Model::LoadEngine() {
     assert(this->engine->getNbBindings() == 2);
     int nbBindings = this->engine->getNbBindings();
     bufferSize.resize(nbBindings);
+    // auto inputSize = batchSize * inputChannel * imageHeight * imageWidth;
+    // auto outputSize = batchSize * 24 * 
     for (int i = 0; i < nbBindings; ++i) {
         nvinfer1::Dims dims = this->engine->getBindingDimensions(i);
         nvinfer1::DataType dtype = this->engine->getBindingDataType(i);
@@ -149,8 +150,8 @@ void Model::ModelInference(std::vector<float> image_data, float *output) {
     cudaMemcpyAsync(buffers[0], image_data.data(), bufferSize[0], cudaMemcpyHostToDevice, stream);
 
     //gpu inference
-    this->context->executeV2(buffers);
-    // this->context->enqueueV2(buffers, stream, nullptr);
+    // this->context->executeV2(buffers);
+    this->context->enqueueV2(buffers, stream, nullptr);
     cudaMemcpyAsync(output, buffers[1], bufferSize[1], cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
 }

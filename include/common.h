@@ -39,6 +39,7 @@
 #include<algorithm>
 #include<cstdlib>
 #include <cstring>
+#include<math.h>
 // #include <sys/types.h>
 // #include <sys/stat.h>
 // #include<dirent.h>

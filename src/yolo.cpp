@@ -3,13 +3,14 @@
 
 YOLO::YOLO(const YAML::Node &config) : Detection(config) {}
 
-std::vector<Detections> YOLO::PostProcess(const std::vector<cv::Mat> &vec_Mat, float *output) {
+std::vector<Detections> YOLO::PostProcess(const std::vector<cv::Mat> &imgBatch, float *output) {
     std::vector<Detections> vec_result;
     int index = 0;
-    for (const cv::Mat &src_img : vec_Mat)
+    for (const cv::Mat &img : imgBatch)
     {
         Detections result;
-        float ratio = float(src_img.cols) / float(imageWidth) > float(src_img.rows) / float(imageHeight)  ? float(src_img.cols) / float(imageWidth) : float(src_img.rows) / float(imageHeight);
+        float ratio = std::max(float(img.cols) / float(imageWidth), float(img.rows) / float(imageHeight));
+
         float *out = output + index * outSize;
         for (int position = 0; position < num_rows; position++) {
             float *row = out + position * (num_classes + 5);

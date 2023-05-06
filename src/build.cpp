@@ -47,12 +47,16 @@ std::shared_ptr<Model> build_model(std::string model_arch, std::string cfg) {
     //     model = std::make_shared<YOLOv4>(root[model_arch]);
     if (model_arch == "yolov5")
         model = std::make_shared<YOLOv5>(root[model_arch]);
-    // else if (model_arch == "yolov5_cls")
-    //     model = std::make_shared<YOLOv5_cls>(root[model_arch]);
+    else if (model_arch == "yolov5-seg")
+        model = std::make_shared<YOLOv5_seg>(root[model_arch]);
     // else if (model_arch == "YOLOv6")
     //     model = std::make_shared<YOLOv6>(root[model_arch]);
     else if (model_arch == "yolov7")
         model = std::make_shared<YOLOv7>(root[model_arch]);
+    else if (model_arch == "yolov8")
+        model = std::make_shared<YOLOv8>(root[model_arch]);
+    else if (model_arch == "yolov8-seg")
+        model = std::make_shared<YOLOv8_seg>(root[model_arch]);        
     else
         std::cout << "No model arch matched!" << std::endl;
     return model;

@@ -3,13 +3,7 @@
 
 #include "detection.h"
 
-struct Instances {
-    float x;
-    float y;
-    float w;
-    float h;
-    int label;
-    float score;
+struct Instances:Box {
     cv::Mat mask;
 };
 
@@ -28,11 +22,11 @@ public:
                      std::vector<std::string> image_names);
     void Visualize(const std::vector<Segmentations> &segmentations, std::vector<cv::Mat> &imgBatch,
                      cv::String save_name, int fps, cv::Size size); 
-    static float BoxIoU(const Box &det_a, const Box &det_b);
+    static float DIoU(const Instances &det_a, const Instances &det_b);
 
 protected:
     virtual std::vector<Segmentations> PostProcess(const std::vector<cv::Mat> &vec_Mat, float *output)=0;
-    void NMS(std::vector<Box> &segmentations);
+    void NMS(std::vector<Instances> &segmentations);
     int num_classes;
     float obj_threshold;
     float nms_threshold;

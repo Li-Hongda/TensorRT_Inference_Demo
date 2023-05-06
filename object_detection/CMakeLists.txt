@@ -49,10 +49,11 @@ include_directories(${ALL_INCLUDE})
 add_subdirectory(yolov5)
 # add_subdirectory(YOLOv6)
 add_subdirectory(yolov7)
+add_subdirectory(yolov8)
 set(LIBRARY_OUTPUT_PATH ../libs)
 add_library(build SHARED ../src/build.cpp)
 
 set(EXECUTABLE_OUTPUT_PATH ../../bin)
 add_executable(object_detection main.cpp)
-target_link_libraries(object_detection yaml-cpp build yolov5 yolov7)
+target_link_libraries(object_detection yaml-cpp build yolov5 yolov7 yolov8)
 

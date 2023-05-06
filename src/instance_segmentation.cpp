@@ -30,19 +30,26 @@ std::vector<Segmentations> InstanceSegmentation::InferenceImages(std::vector<cv:
     std::vector<float> image_data = PreProcess(imgBatch);
     auto t_end_pre = std::chrono::high_resolution_clock::now();
     float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
-    // sample::gLogInfo << "detection prepare image take: " << total_pre << " ms." << std::endl;
     auto *output = new float[outSize * batchSize];
 
     auto t_start = std::chrono::high_resolution_clock::now();
-    ModelInference(image_data, output);
+    cudaMemcpyAsync(buffers[0], image_data.data(), bufferSize[0], cudaMemcpyHostToDevice, stream);
+
+    //gpu inference
+    this->context->executeV2(buffers);
+    // this->context->enqueueV2(buffers, stream, nullptr);
+    cudaMemcpyAsync(output, buffers[1], bufferSize[1], cudaMemcpyDeviceToHost, stream);
+    cudaStreamSynchronize(stream);    
     auto t_end = std::chrono::high_resolution_clock::now();
     float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();
     std::cout << "detection inference take: " << total_inf << " ms." << std::endl;
-    auto r_start = std::chrono::high_resolution_clock::now();
+    auto t_start_post = std::chrono::high_resolution_clock::now();
     auto boxes = PostProcess(imgBatch, output);
-    auto r_end = std::chrono::high_resolution_clock::now();
-    float total_res = std::chrono::duration<float, std::milli>(r_end - r_start).count();
-    // sample::gLogInfo << "detection postprocess take: " << total_res << " ms." << std::endl;
+    auto t_end_post = std::chrono::high_resolution_clock::now();
+    float total_post = std::chrono::duration<float, std::milli>(t_end_post - t_start_post).count();
+    std::cout << "preprocess take: "<< total_pre << "ms." <<
+    "detection inference take: " << total_inf << " ms." 
+    "postprocess take: " << total_post << " ms." << std::endl;
     delete[] output;
     return boxes;
 }
@@ -140,48 +147,48 @@ void InstanceSegmentation::Inference(const std::string &input_path, const std::s
     std::cout << "Average FPS is " << 1000 * image_list.size() / total_time << std::endl;
 }
 
-// void InstanceSegmentation::NMS(std::vector<Box> &segmentations) {
-//     sort(segmentations.begin(), segmentations.end(), [=](const Box &left, const Box &right) {
-//         return left.score > right.score;
-//     });
+void InstanceSegmentation::NMS(std::vector<Instances> &segmentations) {
+    sort(segmentations.begin(), segmentations.end(), [=](const Instances &left, const Instances &right) {
+        return left.score > right.score;
+    });
 
-//     for (int i = 0; i < (int)segmentations.size(); i++)
-//         for (int j = i + 1; j < (int)segmentations.size(); j++)
-//         {
-//             if (segmentations[i].label == segmentations[j].label)
-//             {
-//                 float iou = DIoU(segmentations[i], segmentations[j]);
-//                 if (iou > nms_threshold)
-//                     segmentations[j].score = 0;
-//             }
-//         }
+    for (int i = 0; i < (int)segmentations.size(); i++)
+        for (int j = i + 1; j < (int)segmentations.size(); j++)
+        {
+            if (segmentations[i].label == segmentations[j].label)
+            {
+                float iou = DIoU(segmentations[i], segmentations[j]);
+                if (iou > nms_threshold)
+                    segmentations[j].score = 0;
+            }
+        }
 
-//     segmentations.erase(std::remove_if(segmentations.begin(), segmentations.end(), [](const Box &det)
-//     { return det.score == 0; }), segmentations.end());
-// }
+    segmentations.erase(std::remove_if(segmentations.begin(), segmentations.end(), [](const Instances &det)
+    { return det.score == 0; }), segmentations.end());
+}
 
-// float InstanceSegmentation::DIoU(const Box &det_a, const Box &det_b) {
-//     cv::Point2f center_a(det_a.x, det_a.y);
-//     cv::Point2f center_b(det_b.x, det_b.y);
-//     cv::Point2f left_up(std::min(det_a.x - det_a.w / 2, det_b.x - det_b.w / 2),
-//                         std::min(det_a.y - det_a.h / 2, det_b.y - det_b.h / 2));
-//     cv::Point2f right_down(std::max(det_a.x + det_a.w / 2, det_b.x + det_b.w / 2),
-//                            std::max(det_a.y + det_a.h / 2, det_b.y + det_b.h / 2));
-//     float distance_d = pow((center_a - center_b).x , 2) + pow((center_a - center_b).y, 2) ;
-//     float distance_c = pow((left_up - right_down).x, 2) + pow((left_up - right_down).y, 2);
-//     float inter_l = std::max(det_a.x - det_a.w / 2, det_b.x - det_b.w / 2);
-//     float inter_t = std::max(det_a.y - det_a.h / 2, det_b.y - det_b.h / 2);
-//     float inter_r = std::min(det_a.x + det_a.w / 2, det_b.x + det_b.w / 2);
-//     float inter_b = std::min(det_a.y + det_a.h / 2, det_b.y + det_b.h / 2);
-//     if (inter_b < inter_t || inter_r < inter_l)
-//         return 0;
-//     float inter_area = (inter_b - inter_t) * (inter_r - inter_l);
-//     float union_area = det_a.w * det_a.h + det_b.w * det_b.h - inter_area;
-//     if (union_area == 0)
-//         return 0;
-//     else
-//         return inter_area / union_area - distance_d / distance_c;
-// }
+float InstanceSegmentation::DIoU(const Instances &det_a, const Instances &det_b) {
+    cv::Point2f center_a(det_a.x, det_a.y);
+    cv::Point2f center_b(det_b.x, det_b.y);
+    cv::Point2f left_up(std::min(det_a.x - det_a.w / 2, det_b.x - det_b.w / 2),
+                        std::min(det_a.y - det_a.h / 2, det_b.y - det_b.h / 2));
+    cv::Point2f right_down(std::max(det_a.x + det_a.w / 2, det_b.x + det_b.w / 2),
+                           std::max(det_a.y + det_a.h / 2, det_b.y + det_b.h / 2));
+    float distance_d = pow((center_a - center_b).x , 2) + pow((center_a - center_b).y, 2) ;
+    float distance_c = pow((left_up - right_down).x, 2) + pow((left_up - right_down).y, 2);
+    float inter_l = std::max(det_a.x - det_a.w / 2, det_b.x - det_b.w / 2);
+    float inter_t = std::max(det_a.y - det_a.h / 2, det_b.y - det_b.h / 2);
+    float inter_r = std::min(det_a.x + det_a.w / 2, det_b.x + det_b.w / 2);
+    float inter_b = std::min(det_a.y + det_a.h / 2, det_b.y + det_b.h / 2);
+    if (inter_b < inter_t || inter_r < inter_l)
+        return 0;
+    float inter_area = (inter_b - inter_t) * (inter_r - inter_l);
+    float union_area = det_a.w * det_a.h + det_b.w * det_b.h - inter_area;
+    if (union_area == 0)
+        return 0;
+    else
+        return inter_area / union_area - distance_d / distance_c;
+}
 
 void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentations, std::vector<cv::Mat> &imgBatch,
                             std::vector<std::string> image_names=std::vector<std::string>()) {

@@ -1,7 +1,7 @@
 #ifndef YOLOV7_H
 #define YOLOV7_H
 
-#include "baseyolo.h"
+#include "yolo.h"
 
 class YOLOv7 : public YOLO {
 public:

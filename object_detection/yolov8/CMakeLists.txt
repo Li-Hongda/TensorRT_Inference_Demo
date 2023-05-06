@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 set(CMAKE_BUILD_TYPE "Debug")
 #set(CMAKE_BUILD_TYPE "Release")
 
-project(yolov5)
+project(yolov8)
 
 set(CMAKE_CXX_STANDARD 14)
 
@@ -65,17 +65,17 @@ set(PROJECT_LIBRARY ../../src/common.cpp
                     ../../src/detection.cpp 
                     ../../src/instance_segmentation.cpp
                     ../../src/yolo.cpp 
-                    ../../src/yolov5.cpp)
+                    ../../src/yolov8.cpp)
 
 include_directories(${ALL_INCLUDE})
 
 set(LIBRARY_OUTPUT_PATH ../../libs)
-add_library(yolov5 SHARED ${PROJECT_LIBRARY} ${SAMPLES_LIBRARY})
-target_link_libraries(yolov5 ${ALL_LIBS} yaml-cpp)
+add_library(yolov8 SHARED ${PROJECT_LIBRARY} ${SAMPLES_LIBRARY})
+target_link_libraries(yolov8 ${ALL_LIBS} yaml-cpp)
 
 # set(EXECUTABLE_OUTPUT_PATH ../../bin)
-# add_executable(yolov5 main.cpp)
-# target_link_libraries(yolov5 det ${ALL_LIBS} yaml-cpp)
+# add_executable(yolov8 main.cpp)
+# target_link_libraries(yolov8 det ${ALL_LIBS} yaml-cpp)
 
 
 

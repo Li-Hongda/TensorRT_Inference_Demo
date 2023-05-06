@@ -79,8 +79,10 @@ struct Detections {
 class Detection : public Model
 {
 public:
+
     explicit Detection(const YAML::Node &config);
-    std::vector<Detections> InferenceImages(std::vector<cv::Mat> &imgBatch);
+    void LoadEngine();
+    std::vector<Detections> InferenceImages(std::vector<cv::Mat> &imgBatch) noexcept;
     void Inference(const std::string &input_path, const std::string &save_path, const bool video) override;
     virtual void Inference(const std::string &input_path, const std::string &save_path) override;
     // void Inference(const std::string &input_path, const bool video) override;
@@ -92,6 +94,7 @@ public:
     static float DIoU(const Box &det_a, const Box &det_b);
 
 protected:
+    // void *buffers[2];
     virtual std::vector<Detections> PostProcess(const std::vector<cv::Mat> &vec_Mat, float *output)=0;
     void NMS(std::vector<Box> &detections);
     int num_classes;

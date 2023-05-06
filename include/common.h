@@ -2,18 +2,6 @@
 #ifndef COMMEN_H
 #define COMMEN_H
 
-#ifndef CHECK
-#define CHECK(status)                                          \
-    do                                                         \
-    {                                                          \
-        auto ret = (status);                                   \
-        if (ret != 0)                                          \
-        {                                                      \
-            std::cerr << "Cuda failure: " << ret << std::endl; \
-            abort();                                           \
-        }                                                      \
-    } while (0)
-#endif
 
 // tensorrt
 #include<logger.h>
@@ -56,6 +44,12 @@
 #include<chrono>
 
 #include "yaml-cpp/yaml.h"
+
+#ifndef CUDA_CHECK
+#define CUDA_CHECK(op)  __check_cuda_runtime((op), #op, __FILE__, __LINE__)
+bool __check_cuda_runtime(cudaError_t code, const char* op, const char* file, int line);
+#endif
+
 
 std::vector<std::string> get_names(const std::string &image_path);
 std::string replace(std::string str, const std::string& from, const std::string& to);

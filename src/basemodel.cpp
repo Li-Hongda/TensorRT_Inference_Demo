@@ -1,4 +1,6 @@
 #include "basemodel.h"
+// static float_t* img_buffer_host = nullptr;
+
 
 Model::Model(const YAML::Node &config) {
     onnx_file = config["onnx_file"].as<std::string>();
@@ -78,7 +80,22 @@ bool Model::ReadTrtFile() {
     // sample::gLogInfo << "deserialize done" << std::endl;
 }
 
-void Model::LoadEngine() {
+// inline void Model::allocateBuffers(std::shared_ptr<nvinfer1::ICudaEngine> engine){
+//     int nbBindings = engine->getNbBindings();
+//     bufferSize.resize(nbBindings);
+//     for (int i = 0; i < nbBindings; ++i) {
+//         nvinfer1::Dims dims = engine->getBindingDimensions(i);
+//         nvinfer1::DataType dtype = engine->getBindingDataType(i);
+//         names[i] = engine->getBindingName(i);
+//         int64_t totalSize = sample::volume(dims) * sample::dataTypeSize(dtype);
+//         bufferSize[i] = totalSize;
+//         CUDA_CHECK(cudaMalloc(&buffers[i], totalSize));
+//     }
+//     outSize = int(bufferSize[1] / sizeof(float) / batchSize);
+// }
+
+
+void Model::LoadEngine(){
     // create and load engine
     std::fstream existEngine;
     existEngine.open(engine_file, std::ios::in);
@@ -90,26 +107,26 @@ void Model::LoadEngine() {
         ReadTrtFile();
         assert(this->engine != nullptr);
     }
-
     this->context = std::unique_ptr<nvinfer1::IExecutionContext>(this->engine->createExecutionContext());
     assert(this->context != nullptr);
 
     //get buffers
-    assert(this->engine->getNbBindings() == 2);
-    int nbBindings = this->engine->getNbBindings();
+    int nbBindings = engine->getNbBindings();
     bufferSize.resize(nbBindings);
-    // auto inputSize = batchSize * inputChannel * imageHeight * imageWidth;
-    // auto outputSize = batchSize * 24 * 
     for (int i = 0; i < nbBindings; ++i) {
-        nvinfer1::Dims dims = this->engine->getBindingDimensions(i);
-        nvinfer1::DataType dtype = this->engine->getBindingDataType(i);
+        nvinfer1::Dims dims = engine->getBindingDimensions(i);
+        nvinfer1::DataType dtype = engine->getBindingDataType(i);
+        names[i] = engine->getBindingName(i);
         int64_t totalSize = sample::volume(dims) * sample::dataTypeSize(dtype);
         bufferSize[i] = totalSize;
-        cudaMalloc(&buffers[i], totalSize);
+        CUDA_CHECK(cudaMalloc(&buffers[i], totalSize));
     }
-    //get stream
+    outSize = int(bufferSize[1] / sizeof(float) / batchSize);    
+    // allocateBuffers(engine);
+
+    //get stream  
     cudaStreamCreate(&stream);
-    outSize = int(bufferSize[1] / sizeof(float) / batchSize);
+    // outSize = int(bufferSize[1] / sizeof(float) / batchSize);
 }
 
 std::vector<float> Model::PreProcess(std::vector<cv::Mat> &imgBatch) {
@@ -142,16 +159,3 @@ std::vector<float> Model::PreProcess(std::vector<cv::Mat> &imgBatch) {
     return result;
 }
 
-void Model::ModelInference(std::vector<float> image_data, float *output) {
-    if (!image_data.data()) {
-        sample::gLogInfo << "prepare images ERROR!" << std::endl;
-        return;
-    }
-    cudaMemcpyAsync(buffers[0], image_data.data(), bufferSize[0], cudaMemcpyHostToDevice, stream);
-
-    //gpu inference
-    // this->context->executeV2(buffers);
-    this->context->enqueueV2(buffers, stream, nullptr);
-    cudaMemcpyAsync(output, buffers[1], bufferSize[1], cudaMemcpyDeviceToHost, stream);
-    cudaStreamSynchronize(stream);
-}

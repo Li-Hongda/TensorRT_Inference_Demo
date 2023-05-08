@@ -81,12 +81,10 @@ class Detection : public Model
 public:
 
     explicit Detection(const YAML::Node &config);
-    void LoadEngine();
+    // void LoadEngine();
     std::vector<Detections> InferenceImages(std::vector<cv::Mat> &imgBatch) noexcept;
     void Inference(const std::string &input_path, const std::string &save_path, const bool video) override;
     virtual void Inference(const std::string &input_path, const std::string &save_path) override;
-    // void Inference(const std::string &input_path, const bool video) override;
-    // void Inference(const std::string &input_path) override;
     void Visualize(const std::vector<Detections> &detections, std::vector<cv::Mat> &imgBatch,
                      std::vector<std::string> image_names);
     void Visualize(const std::vector<Detections> &detections, std::vector<cv::Mat> &imgBatch,
@@ -94,9 +92,12 @@ public:
     static float DIoU(const Box &det_a, const Box &det_b);
 
 protected:
-    // void *buffers[2];
     virtual std::vector<Detections> PostProcess(const std::vector<cv::Mat> &vec_Mat, float *output)=0;
     void NMS(std::vector<Box> &detections);
+    // std::string names[10];
+    // float **cpu_buffers = new float* [10];
+    // void *gpu_buffers[10]{};
+    // std::vector<int64_t> bufferSize;       
     int num_classes;
     float obj_threshold;
     float nms_threshold;

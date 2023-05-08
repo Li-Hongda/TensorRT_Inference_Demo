@@ -30,27 +30,26 @@ std::vector<Segmentations> InstanceSegmentation::InferenceImages(std::vector<cv:
     std::vector<float> image_data = PreProcess(imgBatch);
     auto t_end_pre = std::chrono::high_resolution_clock::now();
     float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
-    auto *output = new float[outSize * batchSize];
 
-    auto t_start = std::chrono::high_resolution_clock::now();
-    cudaMemcpyAsync(buffers[0], image_data.data(), bufferSize[0], cudaMemcpyHostToDevice, stream);
+    CUDA_CHECK(cudaMemcpyAsync(gpu_buffers[0], image_data.data(), bufferSize[0], cudaMemcpyHostToDevice, stream));
 
     //gpu inference
-    this->context->executeV2(buffers);
-    // this->context->enqueueV2(buffers, stream, nullptr);
-    cudaMemcpyAsync(output, buffers[1], bufferSize[1], cudaMemcpyDeviceToHost, stream);
-    cudaStreamSynchronize(stream);    
+    auto t_start = std::chrono::high_resolution_clock::now();
+    this->context->executeV2(gpu_buffers);
     auto t_end = std::chrono::high_resolution_clock::now();
-    float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();
-    std::cout << "detection inference take: " << total_inf << " ms." << std::endl;
+    float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();    
+    // this->context->enqueueV2(gpu_buffers, stream, nullptr);
+    for(int i=1;i<engine->getNbBindings(); ++i){
+        CUDA_CHECK(cudaMemcpyAsync(cpu_buffers[i], gpu_buffers[i], bufferSize[i], cudaMemcpyDeviceToHost, stream));
+    }
+    CUDA_CHECK(cudaStreamSynchronize(stream));
     auto t_start_post = std::chrono::high_resolution_clock::now();
-    auto boxes = PostProcess(imgBatch, output);
+    auto boxes = PostProcess(imgBatch, cpu_buffers[1], cpu_buffers[2]);
     auto t_end_post = std::chrono::high_resolution_clock::now();
     float total_post = std::chrono::duration<float, std::milli>(t_end_post - t_start_post).count();
     std::cout << "preprocess take: "<< total_pre << "ms." <<
     "detection inference take: " << total_inf << " ms." 
     "postprocess take: " << total_post << " ms." << std::endl;
-    delete[] output;
     return boxes;
 }
 
@@ -147,8 +146,8 @@ void InstanceSegmentation::Inference(const std::string &input_path, const std::s
     std::cout << "Average FPS is " << 1000 * image_list.size() / total_time << std::endl;
 }
 
-void InstanceSegmentation::NMS(std::vector<Instances> &segmentations) {
-    sort(segmentations.begin(), segmentations.end(), [=](const Instances &left, const Instances &right) {
+void InstanceSegmentation::NMS(std::vector<Instance> &segmentations) {
+    sort(segmentations.begin(), segmentations.end(), [=](const Instance &left, const Instance &right) {
         return left.score > right.score;
     });
 
@@ -163,11 +162,11 @@ void InstanceSegmentation::NMS(std::vector<Instances> &segmentations) {
             }
         }
 
-    segmentations.erase(std::remove_if(segmentations.begin(), segmentations.end(), [](const Instances &det)
+    segmentations.erase(std::remove_if(segmentations.begin(), segmentations.end(), [](const Instance &det)
     { return det.score == 0; }), segmentations.end());
 }
 
-float InstanceSegmentation::DIoU(const Instances &det_a, const Instances &det_b) {
+float InstanceSegmentation::DIoU(const Instance &det_a, const Instance &det_b) {
     cv::Point2f center_a(det_a.x, det_a.y);
     cv::Point2f center_b(det_b.x, det_b.y);
     cv::Point2f left_up(std::min(det_a.x - det_a.w / 2, det_b.x - det_b.w / 2),
@@ -196,14 +195,27 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
         auto img = imgBatch[i];
         if (!img.data)
             continue;
-        auto bboxes = segmentations[i].segs;
-        for(const auto &bbox : bboxes) {
-            auto score = cv::format("%.3f", bbox.score);
-            std::string text = class_labels[bbox.label] + "|" + score;
-            cv::putText(img, text, cv::Point(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2 - 5),
-                    cv::FONT_HERSHEY_COMPLEX, 0.7, class_colors[bbox.label], 2);
-            cv::Rect rect(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2, bbox.w, bbox.h);
-            cv::rectangle(img, rect, class_colors[bbox.label], 2, cv::LINE_8, 0);
+        auto instances = segmentations[i].segs;
+        for(const auto &ins : instances) {
+            auto mask = ins.mask;
+            // cv::Mat img_mask;
+            cv::Mat img_mask = scale_mask(mask, img);
+            cv::resize(mask, img_mask, img.size());
+            // for (int x = (ins.x - ins.w / 2); x < (ins.x + ins.w / 2); x++) {
+            //     for (int y = (ins.y - ins.h / 2); y < (ins.y + ins.h / 2); y++) {
+            //         float val = img_mask.at<float>(y, x);
+            //         if (val <= 0.5) continue;
+            //         img.at<cv::Vec3b>(y, x)[0] = img.at<cv::Vec3b>(y, x)[0] / 2 + class_colors[ins.label][0] / 2;
+            //         img.at<cv::Vec3b>(y, x)[1] = img.at<cv::Vec3b>(y, x)[1] / 2 + class_colors[ins.label][1] / 2;
+            //         img.at<cv::Vec3b>(y, x)[2] = img.at<cv::Vec3b>(y, x)[2] / 2 + class_colors[ins.label][2] / 2;
+            //     }
+            // }            
+            auto score = cv::format("%.3f", ins.score);
+            std::string text = class_labels[ins.label] + "|" + score;
+            cv::putText(img, text, cv::Point(ins.x - ins.w / 2, ins.y - ins.h / 2 - 5),
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, class_colors[ins.label], 2);
+            cv::Rect rect(ins.x - ins.w / 2, ins.y - ins.h / 2, ins.w, ins.h);
+            cv::rectangle(img, rect, class_colors[ins.label], 2, cv::LINE_8, 0);
         }
         std::string img_name = image_names[i];
         cv::imwrite(img_name, img);
@@ -218,16 +230,37 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
         auto frame = frames[i];
         if (!frame.data)
             continue;
-        auto bboxes = segmentations[i].segs;
-        for(const auto &bbox : bboxes) {
-            auto score = cv::format("%.3f", bbox.score);
-            std::string text = class_labels[bbox.label] + "|" + score;
-            cv::putText(frame, text, cv::Point(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2 - 5),
-                    cv::FONT_HERSHEY_COMPLEX, 0.7, class_colors[bbox.label], 2);
-            cv::Rect rect(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2, bbox.w, bbox.h);
-            cv::rectangle(frame, rect, class_colors[bbox.label], 2, cv::LINE_8, 0);
+        auto instances = segmentations[i].segs;
+        for(const auto &ins : instances) {
+            auto score = cv::format("%.3f", ins.score);
+            std::string text = class_labels[ins.label] + "|" + score;
+            cv::putText(frame, text, cv::Point(ins.x - ins.w / 2, ins.y - ins.h / 2 - 5),
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, class_colors[ins.label], 2);
+            cv::Rect rect(ins.x - ins.w / 2, ins.y - ins.h / 2, ins.w, ins.h);
+            cv::rectangle(frame, rect, class_colors[ins.label], 2, cv::LINE_8, 0);
         }        
         writer.write(frame);
     }
     writer.release();    
+}
+
+cv::Mat InstanceSegmentation::scale_mask(cv::Mat mask, cv::Mat img) {
+  int x, y, w, h;
+  float r_w = imageWidth / (img.cols * 1.0);
+  float r_h = imageHeight / (img.rows * 1.0);
+  if (r_h > r_w) {
+    w = imageWidth;
+    h = r_w * img.rows;
+    x = 0;
+    y = (imageHeight - h) / 2;
+  } else {
+    w = r_h * img.cols;
+    h = imageHeight;
+    x = (imageWidth - w) / 2;
+    y = 0;
+  }
+  cv::Rect r(x, y, w, h);
+  cv::Mat res;
+  cv::resize(mask(r), res, img.size());
+  return res;
 }

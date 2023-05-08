@@ -8,9 +8,7 @@ class Model
 public:
     explicit Model(const YAML::Node &config);
     ~Model();
-    virtual void LoadEngine();
-    // void LoadEngine();
-    // virtual inline void allocateBuffers(std::shared_ptr<nvinfer1::ICudaEngine> engine);
+    void LoadEngine();
     virtual void Inference(const std::string &input_path, const std::string &save_path, const bool video) = 0;
     virtual void Inference(const std::string &input_path, const std::string &save_path) = 0;
 
@@ -26,14 +24,17 @@ protected:
     int imageWidth;
     int imageHeight;
     std::string names[10];
+    float **cpu_buffers = new float* [10];
+    void *gpu_buffers[10]{};
+    std::vector<int64_t> bufferSize;    
     std::shared_ptr<nvinfer1::ICudaEngine> engine;
     std::unique_ptr<nvinfer1::IExecutionContext> context;    
     // nvinfer1::ICudaEngine *engine = nullptr;
     // nvinfer1::IExecutionContext *context = nullptr;
-    void *buffers[2];
-    std::vector<int64_t> bufferSize;
+    float kSoloImageMean[3]={123.675, 116.28, 103.53};
+    float kSoloImageStd[3]={58.395, 57.12, 57.375};
+
     cudaStream_t stream;
-    int outSize;
     std::vector<float> imgMean;
     std::vector<float> imgStd;   
 };

@@ -25,66 +25,33 @@ Detection::Detection(const YAML::Node &config) : Model(config) {
 
 }
 
-void Detection::LoadEngine(){
-    // create and load engine
-    std::fstream existEngine;
-    existEngine.open(engine_file, std::ios::in);
-    if (existEngine) {
-        ReadTrtFile();
-        // assert(this->engine != nullptr);
-    } else {
-        OnnxToTRTModel();
-        ReadTrtFile();
-        assert(this->engine != nullptr);
-    }
-    this->context = std::unique_ptr<nvinfer1::IExecutionContext>(this->engine->createExecutionContext());
-    assert(this->context != nullptr);
-
-    //get buffers
-    int nbBindings = engine->getNbBindings();
-    bufferSize.resize(nbBindings);
-    for (int i = 0; i < nbBindings; ++i) {
-        nvinfer1::Dims dims = engine->getBindingDimensions(i);
-        nvinfer1::DataType dtype = engine->getBindingDataType(i);
-        names[i] = engine->getBindingName(i);
-        int64_t totalSize = sample::volume(dims) * sample::dataTypeSize(dtype);
-        bufferSize[i] = totalSize;
-        CUDA_CHECK(cudaMalloc(&buffers[i], totalSize));
-    }
-    outSize = int(bufferSize[1] / sizeof(float) / batchSize);    
-    // allocateBuffers(engine);
-
-    //get stream  
-    cudaStreamCreate(&stream);
-}
-
-
 std::vector<Detections> Detection::InferenceImages(std::vector<cv::Mat> &imgBatch) noexcept{
     auto t_start_pre = std::chrono::high_resolution_clock::now();
     std::vector<float> image_data = PreProcess(imgBatch);
     auto t_end_pre = std::chrono::high_resolution_clock::now();
     float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
-    auto *output = new float[outSize * batchSize];
 
-    auto t_start = std::chrono::high_resolution_clock::now();
-    cudaMemcpyAsync(buffers[0], image_data.data(), bufferSize[0], cudaMemcpyHostToDevice, stream);
+    
+    CUDA_CHECK(cudaMemcpyAsync(gpu_buffers[0], image_data.data(), bufferSize[0], cudaMemcpyHostToDevice, stream));
 
     //gpu inference
-    this->context->executeV2(buffers);
-    // this->context->enqueueV2(buffers, stream, nullptr);
-    cudaMemcpyAsync(output, buffers[1], bufferSize[1], cudaMemcpyDeviceToHost, stream);
-    cudaStreamSynchronize(stream);    
+    auto t_start = std::chrono::high_resolution_clock::now();
+    this->context->executeV2(gpu_buffers);
     auto t_end = std::chrono::high_resolution_clock::now();
     float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();
-
+    // this->context->enqueueV2(gpu_buffers, stream, nullptr);
+    for(int i=1;i<engine->getNbBindings(); ++i){
+        CUDA_CHECK(cudaMemcpyAsync(cpu_buffers[i], gpu_buffers[i], bufferSize[i], cudaMemcpyDeviceToHost, stream));
+    } 
+    cudaStreamSynchronize(stream);    
+    
     auto t_start_post = std::chrono::high_resolution_clock::now();
-    auto boxes = PostProcess(imgBatch, output);
+    auto boxes = PostProcess(imgBatch, cpu_buffers[1]);
     auto t_end_post = std::chrono::high_resolution_clock::now();
     float total_post = std::chrono::duration<float, std::milli>(t_end_post - t_start_post).count();
     std::cout << "preprocess take: "<< total_pre << "ms." <<
     "detection inference take: " << total_inf << " ms." 
-    "postprocess take: " << total_post << " ms." << std::endl;    
-    delete[] output;
+    "postprocess take: " << total_post << " ms." << std::endl; 
     return boxes;
 }
 
@@ -174,8 +141,8 @@ void Detection::Inference(const std::string &input_path, const std::string &save
             imgBatch.clear();
             imgInfo.clear();
         }
-        
     }
+    delete [] cpu_buffers;
     // sample::gLogError << "Average processing time is " << total_time / image_list.size() << "ms" << std::endl;
     std::cout << "Average processing time is " << total_time / image_list.size() << "ms" << std::endl;
     std::cout << "Average FPS is " << 1000 * image_list.size() / total_time << std::endl;

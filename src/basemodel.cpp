@@ -80,21 +80,6 @@ bool Model::ReadTrtFile() {
     // sample::gLogInfo << "deserialize done" << std::endl;
 }
 
-// inline void Model::allocateBuffers(std::shared_ptr<nvinfer1::ICudaEngine> engine){
-//     int nbBindings = engine->getNbBindings();
-//     bufferSize.resize(nbBindings);
-//     for (int i = 0; i < nbBindings; ++i) {
-//         nvinfer1::Dims dims = engine->getBindingDimensions(i);
-//         nvinfer1::DataType dtype = engine->getBindingDataType(i);
-//         names[i] = engine->getBindingName(i);
-//         int64_t totalSize = sample::volume(dims) * sample::dataTypeSize(dtype);
-//         bufferSize[i] = totalSize;
-//         CUDA_CHECK(cudaMalloc(&buffers[i], totalSize));
-//     }
-//     outSize = int(bufferSize[1] / sizeof(float) / batchSize);
-// }
-
-
 void Model::LoadEngine(){
     // create and load engine
     std::fstream existEngine;
@@ -110,7 +95,7 @@ void Model::LoadEngine(){
     this->context = std::unique_ptr<nvinfer1::IExecutionContext>(this->engine->createExecutionContext());
     assert(this->context != nullptr);
 
-    //get buffers
+    //get gpu_buffers
     int nbBindings = engine->getNbBindings();
     bufferSize.resize(nbBindings);
     for (int i = 0; i < nbBindings; ++i) {
@@ -118,15 +103,13 @@ void Model::LoadEngine(){
         nvinfer1::DataType dtype = engine->getBindingDataType(i);
         names[i] = engine->getBindingName(i);
         int64_t totalSize = sample::volume(dims) * sample::dataTypeSize(dtype);
+        cpu_buffers[i] = (float *)malloc(totalSize);
         bufferSize[i] = totalSize;
-        CUDA_CHECK(cudaMalloc(&buffers[i], totalSize));
+        CUDA_CHECK(cudaMalloc(&gpu_buffers[i], totalSize));
     }
-    outSize = int(bufferSize[1] / sizeof(float) / batchSize);    
-    // allocateBuffers(engine);
 
     //get stream  
     cudaStreamCreate(&stream);
-    // outSize = int(bufferSize[1] / sizeof(float) / batchSize);
 }
 
 std::vector<float> Model::PreProcess(std::vector<cv::Mat> &imgBatch) {

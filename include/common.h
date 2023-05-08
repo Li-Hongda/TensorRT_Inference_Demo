@@ -53,6 +53,6 @@ bool __check_cuda_runtime(cudaError_t code, const char* op, const char* file, in
 
 std::vector<std::string> get_names(const std::string &image_path);
 std::string replace(std::string str, const std::string& from, const std::string& to);
-int check_dir(const std::string &path, const bool is_mkdir);
+int check_dir(const std::string &path, const bool is_mkdir) noexcept;
 
 #endif

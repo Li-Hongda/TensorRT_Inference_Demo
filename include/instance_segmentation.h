@@ -3,7 +3,13 @@
 
 #include "detection.h"
 
-struct Instance:Box {
+struct Instance {
+    float x;
+    float y;
+    float w;
+    float h;
+    int label;
+    float score;    
     cv::Mat mask;
     // float mask[32];
 };

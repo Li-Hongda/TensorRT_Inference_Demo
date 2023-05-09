@@ -43,7 +43,7 @@ std::vector<Detections> Detection::InferenceImages(std::vector<cv::Mat> &imgBatc
     for(int i=1;i<engine->getNbBindings(); ++i){
         CUDA_CHECK(cudaMemcpyAsync(cpu_buffers[i], gpu_buffers[i], bufferSize[i], cudaMemcpyDeviceToHost, stream));
     } 
-    cudaStreamSynchronize(stream);    
+    cudaStreamSynchronize(stream); 
     
     auto t_start_post = std::chrono::high_resolution_clock::now();
     auto boxes = PostProcess(imgBatch, cpu_buffers[1]);
@@ -189,6 +189,14 @@ float Detection::DIoU(const Box &det_a, const Box &det_b) {
         return 0;
     else
         return inter_area / union_area - distance_d / distance_c;
+}
+
+Box Detection::regularization(Box &box, int width, int height){
+    if (box.x < 0) box.x = 0.0;
+    if (box.y < 0) box.y = 0.0;
+    // if (box.x + box.w > width) box.w = float(width - box.x);
+    // if (box.y + box.h > height) box.h = float(height - box.y);
+    return box;
 }
 
 void Detection::Visualize(const std::vector<Detections> &detections, std::vector<cv::Mat> &imgBatch,

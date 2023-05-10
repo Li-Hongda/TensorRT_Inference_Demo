@@ -1,14 +1,14 @@
 yolov5-seg:
-    onnx_file:     "../weights/yolov5s-seg.onnx"
-    engine_file:   "../weights/yolov5s-seg.trt"
+    onnx_file:     "../weights/yolov5/yolov5s-seg.onnx"
+    engine_file:   "../weights/yolov5/yolov5s-seg.trt"
     type:          "coco80"
     mode:          "fp32"
-    batchSize:    1
-    inputChannel: 3
-    imageWidth:   640
-    imageHeight:  640
+    batchSize:     1
+    inputChannel:  3
+    imageWidth:    640
+    imageHeight:   640
     obj_threshold: 0.25
     nms_threshold: 0.45
     strides:       [8, 16, 32]
-    imgMean:      [ 0, 0, 0 ]
-    imgStd:       [ 1, 1, 1 ]
+    imgMean:       [ 0, 0, 0 ]
+    imgStd:        [ 1, 1, 1 ]

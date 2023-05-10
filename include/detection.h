@@ -90,7 +90,7 @@ public:
     void Visualize(const std::vector<Detections> &detections, std::vector<cv::Mat> &imgBatch,
                      cv::String save_name, int fps, cv::Size size); 
     static float DIoU(const Box &det_a, const Box &det_b);
-    Box regularization(Box &box, int width, int height);
+
 protected:
     virtual std::vector<Detections> PostProcess(const std::vector<cv::Mat> &vec_Mat, float *output)=0;
     void NMS(std::vector<Box> &detections);

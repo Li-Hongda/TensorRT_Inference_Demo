@@ -214,7 +214,7 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
             auto score = cv::format("%.3f", ins.score);
             std::string text = class_labels[ins.label] + "|" + score;
             cv::putText(img, text, cv::Point(ins.x - ins.w / 2, ins.y - ins.h / 2 - 5),
-                    cv::FONT_HERSHEY_COMPLEX, 0.7, class_colors[ins.label], 2);
+                    cv::FONT_HERSHEY_SIMPLEX, 0.7, class_colors[ins.label], 2);
             cv::Rect rect(ins.x - ins.w / 2, ins.y - ins.h / 2, ins.w, ins.h);
             cv::rectangle(img, rect, class_colors[ins.label], 2, cv::LINE_8, 0);
         }
@@ -236,7 +236,7 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
             auto score = cv::format("%.3f", ins.score);
             std::string text = class_labels[ins.label] + "|" + score;
             cv::putText(frame, text, cv::Point(ins.x - ins.w / 2, ins.y - ins.h / 2 - 5),
-                    cv::FONT_HERSHEY_COMPLEX, 0.7, class_colors[ins.label], 2);
+                    cv::FONT_HERSHEY_SIMPLEX, 0.7, class_colors[ins.label], 2);
             cv::Rect rect(ins.x - ins.w / 2, ins.y - ins.h / 2, ins.w, ins.h);
             cv::rectangle(frame, rect, class_colors[ins.label], 2, cv::LINE_8, 0);
         }        

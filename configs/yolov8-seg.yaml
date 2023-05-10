@@ -1,6 +1,6 @@
-yolov5:
-    onnx_file:     "../weights/yolov5/yolov5l.onnx"
-    engine_file:   "../weights/yolov5/yolov5l.trt"
+yolov8-seg:
+    onnx_file:     "../weights/yolov8/yolov8s-seg.onnx"
+    engine_file:   "../weights/yolov8/yolov8s-seg.trt"
     type:          "coco80"
     mode:          "fp32"
     batchSize:     1

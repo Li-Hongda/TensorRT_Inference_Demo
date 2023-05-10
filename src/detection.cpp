@@ -191,14 +191,6 @@ float Detection::DIoU(const Box &det_a, const Box &det_b) {
         return inter_area / union_area - distance_d / distance_c;
 }
 
-Box Detection::regularization(Box &box, int width, int height){
-    if (box.x < 0) box.x = 0.0;
-    if (box.y < 0) box.y = 0.0;
-    // if (box.x + box.w > width) box.w = float(width - box.x);
-    // if (box.y + box.h > height) box.h = float(height - box.y);
-    return box;
-}
-
 void Detection::Visualize(const std::vector<Detections> &detections, std::vector<cv::Mat> &imgBatch,
                             std::vector<std::string> image_names=std::vector<std::string>()) {
     for (int i = 0; i < (int)imgBatch.size(); i++) {
@@ -210,7 +202,7 @@ void Detection::Visualize(const std::vector<Detections> &detections, std::vector
             auto score = cv::format("%.3f", bbox.score);
             std::string text = class_labels[bbox.label] + "|" + score;
             cv::putText(img, text, cv::Point(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2 - 5),
-                    cv::FONT_HERSHEY_COMPLEX, 0.7, class_colors[bbox.label], 2);
+                    cv::FONT_HERSHEY_SIMPLEX, 0.7, class_colors[bbox.label], 2);
             cv::Rect rect(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2, bbox.w, bbox.h);
             cv::rectangle(img, rect, class_colors[bbox.label], 2, cv::LINE_8, 0);
         }
@@ -232,7 +224,7 @@ void Detection::Visualize(const std::vector<Detections> &detections, std::vector
             auto score = cv::format("%.3f", bbox.score);
             std::string text = class_labels[bbox.label] + "|" + score;
             cv::putText(frame, text, cv::Point(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2 - 5),
-                    cv::FONT_HERSHEY_COMPLEX, 0.7, class_colors[bbox.label], 2);
+                    cv::FONT_HERSHEY_SIMPLEX, 0.7, class_colors[bbox.label], 2);
             cv::Rect rect(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2, bbox.w, bbox.h);
             cv::rectangle(frame, rect, class_colors[bbox.label], 2, cv::LINE_8, 0);
         }        

@@ -125,8 +125,6 @@ void InstanceSegmentation::Inference(const std::string &input_path, const std::s
         index++;
         // TODO: figure out why double free.
         std::cout << "Processing: " << image_name << std::endl;
-        if (image_name == "/home/lhd/code/practice/TensorRT_Inference_Demo/demo/000000009448.jpg")
-            printf("find");        
         cv::Mat img = cv::imread(image_name);
         imgBatch.emplace_back(img.clone());
         auto save_name = replace(image_name, input_path, save_path);
@@ -200,13 +198,12 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
         auto instances = segmentations[i].segs;
         for(const auto &ins : instances) {
             auto mask = ins.mask;
-            // cv::Mat img_mask;
-            cv::Mat img_mask = scale_mask(mask, img);
-            // cv::resize(mask, img_mask, img.size());
+            cv::Mat img_mask;
+            cv::Rect rec = cv::Rect(0, 0, img.cols, img.rows);
+            cv::resize(mask(rec), img_mask, img.size());
             for (int x = (ins.x - ins.w / 2); x < (ins.x + ins.w / 2); x++) {
                 for (int y = (ins.y - ins.h / 2); y < (ins.y + ins.h / 2); y++) {
-                    if (y < 0 or y > img.rows or x < 0 or x > img.cols)
-                        continue; 
+                    if (y < 0 or y >= img.rows or x < 0 or x >= img.cols) continue;
                     float val = img_mask.at<float>(y, x);
                     if (val <= 0.5) continue;
                     img.at<cv::Vec3b>(y, x)[0] = img.at<cv::Vec3b>(y, x)[0] / 2 + class_colors[ins.label][0] / 2;
@@ -246,25 +243,4 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
         writer.write(frame);
     }
     writer.release();    
-}
-
-cv::Mat InstanceSegmentation::scale_mask(cv::Mat mask, cv::Mat img) {
-    int x, y, w, h;
-    // float r_w = imageWidth / (img.cols * 1.0);
-    // float r_h = imageHeight / (img.rows * 1.0);
-    x = 0;
-    y = 0; 
-    w = img.cols;
-    h = img.rows; 
-    // if (r_h > r_w) {
-    //     w = imageWidth;
-    //     h = r_w * img.rows;
-    // } else {
-    //     w = r_h * img.cols;
-    //     h = imageHeight;
-    // }
-    cv::Rect r(x, y, w, h);
-    cv::Mat res;
-    cv::resize(mask(r), res, img.size());
-    return res;
 }

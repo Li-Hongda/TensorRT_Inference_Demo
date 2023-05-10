@@ -7,7 +7,7 @@ int main(int argc, char **argv)
         "{config 	|| config file of model			  }"
         "{inputpath || path of images or videos       }"
         "{savePath  || save path of results	          }" 
-    });    
+    });  
     std::string model_arch = argv[1];
     std::string inputpath = argv[2];
     std::string video = argv[3];

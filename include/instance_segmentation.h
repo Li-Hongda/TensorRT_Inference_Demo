@@ -33,7 +33,6 @@ public:
 
 protected:
     virtual std::vector<Segmentations> PostProcess(const std::vector<cv::Mat> &vec_Mat, float *output1, float *output2)=0;
-    cv::Mat scale_mask(cv::Mat mask, cv::Mat img);
     void NMS(std::vector<Instance> &segmentations);
     int num_classes;
     float obj_threshold;

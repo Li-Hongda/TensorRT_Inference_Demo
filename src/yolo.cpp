@@ -46,7 +46,6 @@ std::vector<Segmentations> YOLO_seg::PostProcess(const std::vector<cv::Mat> &img
         float ratio = std::max(float(img.cols) / float(imageWidth), float(img.rows) / float(imageHeight));
         float *proto = output1 + index * protoSize;
         float *pred = output2 + index * predSize;
-        // float *proto = output + index * 
         for (int position = 0; position < num_rows; position++) {
             float *row = pred + position * (num_classes + 5 + 32);
             if (row[4] < obj_threshold) continue;
@@ -62,24 +61,27 @@ std::vector<Segmentations> YOLO_seg::PostProcess(const std::vector<cv::Mat> &img
             ins.y = row[1] * ratio;
             ins.w = row[2] * ratio;
             ins.h = row[3] * ratio;
+            if (position == 25006)
+                printf("find");            
             // auto scale_box = cv::Rect(round((ins.x - ins.w / 2)/ 4), round((ins.y - ins.h / 2)/ 4), round(ins.w / 4), round(ins.h / 4));
             float box[4] = {ins.x, ins.y, ins.w, ins.h};
-            auto scale_box = get_downscale_rect(box,4, img.cols, img.rows);
+            auto scale_box = get_downscale_rect(box, 4);
             for (int x = scale_box.x; x < scale_box.x + scale_box.width; x++) {
                 for (int y = scale_box.y; y < scale_box.y + scale_box.height; y++) {
-                    // if (y < 0 or y > mask_mat.rows or x < 0 or x > mask_mat.cols)
-                    //     mask_mat.at<float>(y, x) = 0.5;
                     float e = 0.0f;
                     for (int j = 0; j < 32; j++) {
-                        e += temp[j] * proto[j * protoSize / 32 + y * mask_mat.cols + x];
+                        int index = j * protoSize / 32 + y * mask_mat.cols + x;
+                        if (index >= 0 && index < protoSize) { 
+                            e += temp[j] * proto[index];
+                        }                        
+                        // e += temp[j] * proto[j * protoSize / 32 + y * mask_mat.cols + x];
                     }
                     e = 1.0f / (1.0f + expf(-e));
                     mask_mat.at<float>(y, x) = e;
                 }
             }
-            
             cv::resize(mask_mat, mask_mat, cv::Size(imageWidth, imageHeight));
-            ins.mask = mask_mat;
+            ins.mask = mask_mat;          
             result.segs.emplace_back(ins);
         }
         NMS(result.segs);
@@ -90,27 +92,17 @@ std::vector<Segmentations> YOLO_seg::PostProcess(const std::vector<cv::Mat> &img
     return vec_result;
 }
 
-cv::Rect YOLO_seg::get_downscale_rect(float bbox[4], float scale, int width, int height) {
+cv::Rect YOLO_seg::get_downscale_rect(float bbox[4], float scale) {
     float left = bbox[0] - bbox[2] / 2;
     float top = bbox[1] - bbox[3] / 2;
-    float right = bbox[0] + bbox[2] / 2;
-    float bottom = bbox[1] + bbox[3] / 2;
     left /= scale;
-    if (left < 0){
-        left = 0.0;
-    }
     top /= scale;
-    if (top < 0){
-        top = 0.0; 
-    }
-    right /= scale;
-    if (right > width){
-        right = float(width);
-    }
-    bottom /= scale;
-    if (bottom > height){
-        bottom = float(height);
-    }
-    // return cv::Rect(round(left), round(top), round(right - left), round(bottom - top));
-    return cv::Rect(left, top, (right - left), (bottom - top));
+    auto width  = bbox[2] / scale;
+    auto height = bbox[3] / scale;
+    if (left < 0) left = 0.0;
+    if (top < 0) top = 0.0;
+    if (left + width > imageWidth / scale) width = imageWidth / scale - left;
+    if (top + height > imageHeight / scale) height = imageHeight / scale -top;
+
+    return cv::Rect(left, top, width, height);
 }

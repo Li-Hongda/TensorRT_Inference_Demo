@@ -11,19 +11,18 @@ std::vector<Detections> YOLO::PostProcess(const std::vector<cv::Mat> &imgBatch, 
     {
         Detections result;
         float ratio = std::max(float(img.cols) / float(imageWidth), float(img.rows) / float(imageHeight));
-        float *pred = output + index * predSize;
+        float *pred_per_img = output + index * predSize;
         for (int position = 0; position < num_rows; position++) {
-            float *row = pred + position * (num_classes + 5);
-            if (row[4] < obj_threshold) continue;
+            float *pred_per_obj = pred_per_img + position * (num_classes + 5);
+            if (pred_per_obj[4] < obj_threshold) continue;
             Box box;
-            auto max_pos = std::max_element(row + 5, row + num_classes + 5);
-            box.score = row[4] * row[max_pos - row];
-            box.label = max_pos - row - 5;
-            box.x = row[0] * ratio;
-            box.y = row[1] * ratio;
-            box.w = row[2] * ratio;
-            box.h = row[3] * ratio;
-            // box = regularization(box, img.cols, img.rows);
+            auto max_pos = std::max_element(pred_per_obj + 5, pred_per_obj + num_classes + 5);
+            box.score = pred_per_obj[4] * pred_per_obj[max_pos - pred_per_obj];
+            box.label = max_pos - pred_per_obj - 5;
+            box.x = pred_per_obj[0] * ratio;
+            box.y = pred_per_obj[1] * ratio;
+            box.w = pred_per_obj[2] * ratio;
+            box.h = pred_per_obj[3] * ratio;
             result.dets.emplace_back(box);
         }
         NMS(result.dets);
@@ -45,22 +44,22 @@ std::vector<Segmentations> YOLO_seg::PostProcess(const std::vector<cv::Mat> &img
         Segmentations result;
         float ratio = std::max(float(img.cols) / float(imageWidth), float(img.rows) / float(imageHeight));
         float *proto = output1 + index * protoSize;
-        float *pred = output2 + index * predSize;
+        float *pred_per_img = output2 + index * predSize;
         for (int position = 0; position < num_rows; position++) {
-            float *row = pred + position * (num_classes + 5 + 32);
-            if (row[4] < obj_threshold) continue;
+            float *pred_per_obj = pred_per_img + position * (num_classes + 5 + 32);
+            if (pred_per_obj[4] < obj_threshold) continue;
             Instance ins;
             cv::Mat mask_mat = cv::Mat::zeros(imageHeight / 4, imageWidth / 4, CV_32FC1);
 
-            auto max_pos = std::max_element(row + 5, row + num_classes + 5);
+            auto max_pos = std::max_element(pred_per_obj + 5, pred_per_obj + num_classes + 5);
             float temp[32];
-            memcpy(&temp, row + num_classes + 5, 32 * 4);
-            ins.score = row[4] * row[max_pos - row];
-            ins.label = max_pos - row - 5;
-            ins.x = row[0] * ratio;
-            ins.y = row[1] * ratio;
-            ins.w = row[2] * ratio;
-            ins.h = row[3] * ratio;
+            memcpy(&temp, pred_per_obj + num_classes + 5, 32 * 4);
+            ins.score = pred_per_obj[4] * pred_per_obj[max_pos - pred_per_obj];
+            ins.label = max_pos - pred_per_obj - 5;
+            ins.x = pred_per_obj[0] * ratio;
+            ins.y = pred_per_obj[1] * ratio;
+            ins.w = pred_per_obj[2] * ratio;
+            ins.h = pred_per_obj[3] * ratio;
             if (position == 25006)
                 printf("find");            
             // auto scale_box = cv::Rect(round((ins.x - ins.w / 2)/ 4), round((ins.y - ins.h / 2)/ 4), round(ins.w / 4), round(ins.h / 4));

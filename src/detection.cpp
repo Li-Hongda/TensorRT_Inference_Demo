@@ -36,10 +36,10 @@ std::vector<Detections> Detection::InferenceImages(std::vector<cv::Mat> &imgBatc
 
     //gpu inference
     auto t_start = std::chrono::high_resolution_clock::now();
-    this->context->executeV2(gpu_buffers);
+    // this->context->executeV2(gpu_buffers);
+    this->context->enqueueV2(gpu_buffers, stream, nullptr);
     auto t_end = std::chrono::high_resolution_clock::now();
     float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();
-    // this->context->enqueueV2(gpu_buffers, stream, nullptr);
     for(int i=1;i<engine->getNbBindings(); ++i){
         CUDA_CHECK(cudaMemcpyAsync(cpu_buffers[i], gpu_buffers[i], bufferSize[i], cudaMemcpyDeviceToHost, stream));
     } 
@@ -49,9 +49,9 @@ std::vector<Detections> Detection::InferenceImages(std::vector<cv::Mat> &imgBatc
     auto boxes = PostProcess(imgBatch, cpu_buffers[1]);
     auto t_end_post = std::chrono::high_resolution_clock::now();
     float total_post = std::chrono::duration<float, std::milli>(t_end_post - t_start_post).count();
-    std::cout << "preprocess take: "<< total_pre << "ms." <<
-    "detection inference take: " << total_inf << " ms." 
-    "postprocess take: " << total_post << " ms." << std::endl; 
+    std::cout << "preprocess time: "<< total_pre << "ms." <<
+    "detection inference time: " << total_inf << " ms." 
+    "postprocess time: " << total_post << " ms." << std::endl; 
     return boxes;
 }
 
@@ -126,7 +126,7 @@ void Detection::Inference(const std::string &input_path, const std::string &save
     for (const std::string &image_name : image_list) {
         index++;
         // TODO: figure out why double free.
-        std::cout << "Processing: " << image_name << std::endl;
+        // std::cout << "Processing: " << image_name << std::endl;
         cv::Mat img = cv::imread(image_name);
         imgBatch.emplace_back(img.clone());
         auto save_name = replace(image_name, input_path, save_path);
@@ -188,6 +188,7 @@ float Detection::DIoU(const Box &det_a, const Box &det_b) {
     if (union_area == 0)
         return 0;
     else
+        // return inter_area / union_area;
         return inter_area / union_area - distance_d / distance_c;
 }
 

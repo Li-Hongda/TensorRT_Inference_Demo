@@ -11,18 +11,18 @@ std::vector<ClassRes> Classification::InferenceImages(std::vector<cv::Mat> &imgB
     std::vector<float> image_data = PreProcess(imgBatch);
     auto t_end_pre = std::chrono::high_resolution_clock::now();
     float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
-    std::cout << "classification prepare image take: " << total_pre << " ms." << std::endl;
+    std::cout << "classification prepare image time: " << total_pre << " ms." << std::endl;
     auto *output = new float[outSize * batchSize];;
     auto t_start = std::chrono::high_resolution_clock::now();
     ModelInference(image_data, output);
     auto t_end = std::chrono::high_resolution_clock::now();
     float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();
-    std::cout << "classification inference take: " << total_inf << " ms." << std::endl;
+    std::cout << "classification inference time: " << total_inf << " ms." << std::endl;
     auto r_start = std::chrono::high_resolution_clock::now();
     auto results = PostProcess(imgBatch, output);
     auto r_end = std::chrono::high_resolution_clock::now();
     float total_res = std::chrono::duration<float, std::milli>(r_end - r_start).count();
-    std::cout << "classification postprocess take: " << total_res << " ms." << std::endl;
+    std::cout << "classification postprocess time: " << total_res << " ms." << std::endl;
     delete[] output;
     return results;
 }

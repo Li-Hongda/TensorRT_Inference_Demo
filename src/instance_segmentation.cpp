@@ -189,8 +189,12 @@ float InstanceSegmentation::DIoU(const Instance &det_a, const Instance &det_b) {
         return inter_area / union_area - distance_d / distance_c;
 }
 
-void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentations, std::vector<cv::Mat> &imgBatch,
-                            std::vector<std::string> image_names=std::vector<std::string>()) {
+void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentations, 
+                                     std::vector<cv::Mat> &imgBatch, 
+                                     std::vector<std::string> image_names) {
+    int font_face = cv::FONT_HERSHEY_SIMPLEX;
+    double font_scale = 0.5f;
+    float thickness = 0.5;    
     for (int i = 0; i < (int)imgBatch.size(); i++) {
         auto img = imgBatch[i];
         if (!img.data)
@@ -201,20 +205,25 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
             cv::Mat img_mask;
             cv::Rect rec = cv::Rect(0, 0, img.cols, img.rows);
             cv::resize(mask(rec), img_mask, img.size());
-            for (int x = (ins.x - ins.w / 2); x < (ins.x + ins.w / 2); x++) {
-                for (int y = (ins.y - ins.h / 2); y < (ins.y + ins.h / 2); y++) {
-                    if (y < 0 or y >= img.rows or x < 0 or x >= img.cols) continue;
-                    float val = img_mask.at<float>(y, x);
-                    if (val <= 0.5) continue;
-                    img.at<cv::Vec3b>(y, x)[0] = img.at<cv::Vec3b>(y, x)[0] / 2 + class_colors[ins.label][0] / 2;
-                    img.at<cv::Vec3b>(y, x)[1] = img.at<cv::Vec3b>(y, x)[1] / 2 + class_colors[ins.label][1] / 2;
-                    img.at<cv::Vec3b>(y, x)[2] = img.at<cv::Vec3b>(y, x)[2] / 2 + class_colors[ins.label][2] / 2;
-                }
-            }
+            std::vector<cv::Mat> contours;
+            cv::Mat hierarchy;
+            cv::Mat colored_img = img.clone();
+            img_mask.convertTo(img_mask, CV_8U);
+            cv::findContours(img_mask, contours, hierarchy, 
+                             cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
+            cv::drawContours(colored_img, contours, -1, class_colors[ins.label], -1, cv::LINE_8,
+                             hierarchy, 100); 
+            img = 0.4 * colored_img + 0.6 * img;
+
             auto score = cv::format("%.3f", ins.score);
             std::string text = class_labels[ins.label] + "|" + score;
-            cv::putText(img, text, cv::Point(ins.x - ins.w / 2, ins.y - ins.h / 2 - 5),
-                    cv::FONT_HERSHEY_SIMPLEX, 0.7, class_colors[ins.label], 2);
+            cv::Point org;
+            org.x = ins.x - ins.w / 2;
+            org.y = ins.y - ins.h / 2 - 5;
+            cv::Size text_size = cv::getTextSize(text, font_face, font_scale, thickness, nullptr);
+            cv::Rect text_back = cv::Rect(org.x, org.y - text_size.height, text_size.width, text_size.height + 5); 
+            cv::rectangle(img, text_back, class_colors[ins.label], -1);
+            cv::putText(img, text, org, font_face, font_scale, cv::Scalar(255, 255, 255), thickness);
             cv::Rect rect(ins.x - ins.w / 2, ins.y - ins.h / 2, ins.w, ins.h);
             cv::rectangle(img, rect, class_colors[ins.label], 2, cv::LINE_8, 0);
         }
@@ -223,8 +232,13 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
     }
 }
 
-void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentations, std::vector<cv::Mat> &frames,
-                            const cv::String save_name, int fps, cv::Size size) {
+void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentations, 
+                                     std::vector<cv::Mat> &frames,
+                                     const cv::String save_name, 
+                                     int fps, cv::Size size) {
+    int font_face = cv::FONT_HERSHEY_SIMPLEX;
+    double font_scale = 0.5f;
+    float thickness = 0.5;        
     auto fourcc = cv::VideoWriter::fourcc('m','p','4','v');
     cv::VideoWriter writer(save_name, fourcc, fps, size, true);
     for (int i = 0; i < (int)frames.size(); i++){

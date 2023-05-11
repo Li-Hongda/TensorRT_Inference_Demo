@@ -1,4 +1,4 @@
-// #pragma once
+#pragma once
 #ifndef COMMEN_H
 #define COMMEN_H
 
@@ -12,13 +12,7 @@
 
 // cuda
 #include<cuda_runtime.h>
-// #include<stdio.h>
-// #include <thrust/sort.h>
-// #include<math.h>
-// #include<cuda_device_runtime_api.h>
 #include<cuda_runtime_api.h>
-// #include<device_launch_parameters.h>
-// #include<device_atomic_functions.h>
 
 // opencv
 #include<opencv2/opencv.hpp>
@@ -28,19 +22,12 @@
 #include<cstdlib>
 #include <cstring>
 #include<math.h>
-// #include <sys/types.h>
-// #include <sys/stat.h>
-// #include<dirent.h>
 #include<numeric>
 #include<fstream>
 #include<iostream>
 #include<sstream>
 #include<vector>
 #include<map>
-// #include <regex>
-// #include <glob.h>
-// #include <unistd.h>
-// #include <unordered_map>
 #include<chrono>
 
 #include "yaml-cpp/yaml.h"

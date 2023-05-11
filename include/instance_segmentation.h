@@ -11,7 +11,6 @@ struct Instance {
     int label;
     float score;    
     cv::Mat mask;
-    // float mask[32];
 };
 
 struct Segmentations {

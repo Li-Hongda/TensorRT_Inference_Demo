@@ -81,7 +81,6 @@ class Detection : public Model
 public:
 
     explicit Detection(const YAML::Node &config);
-    // void LoadEngine();
     std::vector<Detections> InferenceImages(std::vector<cv::Mat> &imgBatch) noexcept;
     void Inference(const std::string &input_path, const std::string &save_path, const bool video) override;
     virtual void Inference(const std::string &input_path, const std::string &save_path) override;
@@ -93,11 +92,7 @@ public:
 
 protected:
     virtual std::vector<Detections> PostProcess(const std::vector<cv::Mat> &vec_Mat, float *output)=0;
-    void NMS(std::vector<Box> &detections);
-    // std::string names[10];
-    // float **cpu_buffers = new float* [10];
-    // void *gpu_buffers[10]{};
-    // std::vector<int64_t> bufferSize;       
+    void NMS(std::vector<Box> &detections);    
     int num_classes;
     float obj_threshold;
     float nms_threshold;

@@ -87,4 +87,4 @@ int check_dir(const std::string & path, const bool is_mkdir) noexcept {
     } else {
         mkdir(path.c_str(), 00700);
     }
-}   
+}

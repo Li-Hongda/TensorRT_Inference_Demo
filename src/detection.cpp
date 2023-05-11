@@ -192,8 +192,12 @@ float Detection::DIoU(const Box &det_a, const Box &det_b) {
         return inter_area / union_area - distance_d / distance_c;
 }
 
-void Detection::Visualize(const std::vector<Detections> &detections, std::vector<cv::Mat> &imgBatch,
-                            std::vector<std::string> image_names=std::vector<std::string>()) {
+void Detection::Visualize(const std::vector<Detections> &detections, 
+                          std::vector<cv::Mat> &imgBatch,
+                          std::vector<std::string> image_names) {
+    int font_face = cv::FONT_HERSHEY_SIMPLEX;
+    double font_scale = 0.5f;
+    float thickness = 0.5;                                
     for (int i = 0; i < (int)imgBatch.size(); i++) {
         auto img = imgBatch[i];
         if (!img.data)
@@ -202,8 +206,13 @@ void Detection::Visualize(const std::vector<Detections> &detections, std::vector
         for(const auto &bbox : bboxes) {
             auto score = cv::format("%.3f", bbox.score);
             std::string text = class_labels[bbox.label] + "|" + score;
-            cv::putText(img, text, cv::Point(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2 - 5),
-                    cv::FONT_HERSHEY_SIMPLEX, 0.7, class_colors[bbox.label], 2);
+            cv::Point org;
+            org.x = bbox.x - bbox.w / 2;
+            org.y = bbox.y - bbox.h / 2 - 5;
+            cv::Size text_size = cv::getTextSize(text, font_face, font_scale, thickness, nullptr);
+            cv::Rect text_back = cv::Rect(org.x, org.y - text_size.height, text_size.width, text_size.height + 5); 
+            cv::rectangle(img, text_back, class_colors[bbox.label], -1);
+            cv::putText(img, text, org, font_face, font_scale, cv::Scalar(255, 255, 255), thickness);
             cv::Rect rect(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2, bbox.w, bbox.h);
             cv::rectangle(img, rect, class_colors[bbox.label], 2, cv::LINE_8, 0);
         }
@@ -212,8 +221,10 @@ void Detection::Visualize(const std::vector<Detections> &detections, std::vector
     }
 }
 
-void Detection::Visualize(const std::vector<Detections> &detections, std::vector<cv::Mat> &frames,
-                            const cv::String save_name, int fps, cv::Size size) {
+void Detection::Visualize(const std::vector<Detections> &detections, 
+                          std::vector<cv::Mat> &frames,
+                          const cv::String save_name, 
+                          int fps, cv::Size size) {
     auto fourcc = cv::VideoWriter::fourcc('m','p','4','v');
     cv::VideoWriter writer(save_name, fourcc, fps, size, true);
     for (int i = 0; i < (int)frames.size(); i++){

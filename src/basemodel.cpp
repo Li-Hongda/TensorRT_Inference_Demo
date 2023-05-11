@@ -1,6 +1,4 @@
 #include "basemodel.h"
-// static float_t* img_buffer_host = nullptr;
-
 
 Model::Model(const YAML::Node &config) {
     onnx_file = config["onnx_file"].as<std::string>();
@@ -14,7 +12,12 @@ Model::Model(const YAML::Node &config) {
     imgStd = config["imgStd"].as<std::vector<float>>();
 }
 
-Model::~Model() = default;
+Model::~Model() {
+    cudaStreamDestroy(stream);
+    for (int i = 0; i < engine->getNbBindings(); i++){
+        CUDA_CHECK(cudaFree(gpu_buffers[i]));
+    }
+};
 
 void Model::OnnxToTRTModel() {
     // create the builder
@@ -23,23 +26,20 @@ void Model::OnnxToTRTModel() {
 
     const auto explicitBatch = 1U << static_cast<uint32_t>(nvinfer1::NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
     auto network = builder->createNetworkV2(explicitBatch);
-    // auto network = builder->createNetworkV2(0U);
     auto config = builder->createBuilderConfig();
 
     auto parser = nvonnxparser::createParser(*network, sample::gLogger.getTRTLogger());
     if (!parser->parseFromFile(onnx_file.c_str(), static_cast<int>(sample::gLogger.getReportableSeverity()))) {
         sample::gLogError << "Failure while parsing ONNX file" << std::endl;
     }
-    // Build the engine
+
     // config->setMemoryPoolLimit(nvinfer1::MemoryPoolType::kWORKSPACE, 1U << 30);
     if (mode == "fp16")
         config->setFlag(nvinfer1::BuilderFlag::kFP16);
     else if  (mode == "int8")
         config->setFlag(nvinfer1::BuilderFlag::kINT8);
 
-    sample::gLogInfo << "start building engine" << std::endl;
     nvinfer1::IHostMemory* data = builder->buildSerializedNetwork(*network, *config);
-    sample::gLogInfo << "build engine done" << std::endl;
     assert(data);
     
 
@@ -86,7 +86,6 @@ void Model::LoadEngine(){
     existEngine.open(engine_file, std::ios::in);
     if (existEngine) {
         ReadTrtFile();
-        // assert(this->engine != nullptr);
     } else {
         OnnxToTRTModel();
         ReadTrtFile();

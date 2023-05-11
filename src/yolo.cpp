@@ -60,9 +60,6 @@ std::vector<Segmentations> YOLO_seg::PostProcess(const std::vector<cv::Mat> &img
             ins.y = pred_per_obj[1] * ratio;
             ins.w = pred_per_obj[2] * ratio;
             ins.h = pred_per_obj[3] * ratio;
-            if (position == 25006)
-                printf("find");            
-            // auto scale_box = cv::Rect(round((ins.x - ins.w / 2)/ 4), round((ins.y - ins.h / 2)/ 4), round(ins.w / 4), round(ins.h / 4));
             float box[4] = {ins.x, ins.y, ins.w, ins.h};
             auto scale_box = get_downscale_rect(box, 4);
             for (int x = scale_box.x; x < scale_box.x + scale_box.width; x++) {
@@ -72,11 +69,11 @@ std::vector<Segmentations> YOLO_seg::PostProcess(const std::vector<cv::Mat> &img
                         int index = j * protoSize / 32 + y * mask_mat.cols + x;
                         if (index >= 0 && index < protoSize) { 
                             e += temp[j] * proto[index];
-                        }                        
-                        // e += temp[j] * proto[j * protoSize / 32 + y * mask_mat.cols + x];
+                        }
                     }
                     e = 1.0f / (1.0f + expf(-e));
-                    mask_mat.at<float>(y, x) = e;
+                    if (e > 0.5)
+                        mask_mat.at<float>(y, x) = 1;
                 }
             }
             cv::resize(mask_mat, mask_mat, cv::Size(imageWidth, imageHeight));

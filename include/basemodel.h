@@ -28,11 +28,7 @@ protected:
     void *gpu_buffers[10]{};
     std::vector<int64_t> bufferSize;    
     std::shared_ptr<nvinfer1::ICudaEngine> engine;
-    std::unique_ptr<nvinfer1::IExecutionContext> context;    
-    // nvinfer1::ICudaEngine *engine = nullptr;
-    // nvinfer1::IExecutionContext *context = nullptr;
-    float kSoloImageMean[3]={123.675, 116.28, 103.53};
-    float kSoloImageStd[3]={58.395, 57.12, 57.375};
+    std::unique_ptr<nvinfer1::IExecutionContext> context;
 
     cudaStream_t stream;
     std::vector<float> imgMean;

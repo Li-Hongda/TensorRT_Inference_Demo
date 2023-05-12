@@ -27,17 +27,15 @@ Detection::Detection(const YAML::Node &config) : Model(config) {
 
 std::vector<Detections> Detection::InferenceImages(std::vector<cv::Mat> &imgBatch) noexcept{
     auto t_start_pre = std::chrono::high_resolution_clock::now();
-    std::vector<float> image_data = PreProcess(imgBatch);
+    batch_preprocess(imgBatch);
     auto t_end_pre = std::chrono::high_resolution_clock::now();
     float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
-
-    
-    CUDA_CHECK(cudaMemcpyAsync(gpu_buffers[0], image_data.data(), bufferSize[0], cudaMemcpyHostToDevice, stream));
 
     //gpu inference
     auto t_start = std::chrono::high_resolution_clock::now();
     // this->context->executeV2(gpu_buffers);
-    this->context->enqueueV2(gpu_buffers, stream, nullptr);
+    auto gpu_buf = (void **)gpu_buffers;
+    this->context->enqueueV2(gpu_buf, stream, nullptr);
     auto t_end = std::chrono::high_resolution_clock::now();
     float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();
     for(int i=1;i<engine->getNbBindings(); ++i){
@@ -122,7 +120,7 @@ void Detection::Inference(const std::string &input_path, const std::string &save
     std::vector<std::string> imgInfo;
     imgInfo.reserve(batchSize);
     float total_time = 0;
-
+    cuda_preprocess_init(kMaxInputImageSize);
     for (const std::string &image_name : image_list) {
         index++;
         // TODO: figure out why double free.
@@ -143,7 +141,6 @@ void Detection::Inference(const std::string &input_path, const std::string &save
         }
     }
     delete [] cpu_buffers;
-    // sample::gLogError << "Average processing time is " << total_time / image_list.size() << "ms" << std::endl;
     std::cout << "Average processing time is " << total_time / image_list.size() << "ms" << std::endl;
     std::cout << "Average FPS is " << 1000 * image_list.size() / total_time << std::endl;
 }
@@ -206,14 +203,14 @@ void Detection::Visualize(const std::vector<Detections> &detections,
         for(const auto &bbox : bboxes) {
             auto score = cv::format("%.3f", bbox.score);
             std::string text = class_labels[bbox.label] + "|" + score;
-            cv::Point org;
-            org.x = bbox.x - bbox.w / 2;
-            org.y = bbox.y - bbox.h / 2 - 5;
             cv::Size text_size = cv::getTextSize(text, font_face, font_scale, thickness, nullptr);
+            cv::Point org;
+            org.x = bbox.x;
+            org.y = bbox.y + text_size.height + 2;            
             cv::Rect text_back = cv::Rect(org.x, org.y - text_size.height, text_size.width, text_size.height + 5); 
             cv::rectangle(img, text_back, class_colors[bbox.label], -1);
             cv::putText(img, text, org, font_face, font_scale, cv::Scalar(255, 255, 255), thickness);
-            cv::Rect rect(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2, bbox.w, bbox.h);
+            cv::Rect rect(bbox.x, bbox.y, bbox.w, bbox.h);
             cv::rectangle(img, rect, class_colors[bbox.label], 2, cv::LINE_8, 0);
         }
         std::string img_name = image_names[i];

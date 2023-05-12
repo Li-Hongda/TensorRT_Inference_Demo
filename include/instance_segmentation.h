@@ -29,6 +29,7 @@ public:
     void Visualize(const std::vector<Segmentations> &segmentations, std::vector<cv::Mat> &imgBatch,
                      cv::String save_name, int fps, cv::Size size); 
     static float DIoU(const Instance &det_a, const Instance &det_b);
+    cv::Mat scale_mask(cv::Mat mask, cv::Mat img);
 
 protected:
     virtual std::vector<Segmentations> PostProcess(const std::vector<cv::Mat> &vec_Mat, float *output1, float *output2)=0;

@@ -13,7 +13,7 @@ class YOLOv8_seg : public YOLO_seg {
 public:
     explicit YOLOv8_seg(const YAML::Node &config);
 protected:    
-    std::vector<Detections> PostProcess(const std::vector<cv::Mat> &imgBatch, float *output);
+    std::vector<Segmentations> PostProcess(const std::vector<cv::Mat> &imgBatch, float *output1, float *output2);
 };
 
 #endif

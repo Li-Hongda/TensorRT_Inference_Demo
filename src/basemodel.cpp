@@ -45,9 +45,9 @@ void Model::OnnxToTRTModel() {
 
     std::ofstream file;
     file.open(engine_file, std::ios::binary | std::ios::out);
-    sample::gLogInfo << "writing engine file..." << std::endl;
+    // sample::gLogInfo << "writing engine file..." << std::endl;
     file.write((const char *) data->data(), data->size());
-    sample::gLogInfo << "save engine file done" << std::endl;
+    // sample::gLogInfo << "save engine file done" << std::endl;
     file.close();
 
     delete parser;
@@ -141,3 +141,28 @@ std::vector<float> Model::PreProcess(std::vector<cv::Mat> &imgBatch) {
     return result;
 }
 
+
+void Model::batch_preprocess(std::vector<cv::Mat>& img_batch) {
+    for (size_t i = 0; i < img_batch.size(); i++) {
+    // cuda_preprocess(img_batch[i].ptr(), img_batch[i].cols, img_batch[i].rows, &dst[dst_size * i], dst_width, dst_height, stream);
+        int height = img_batch[i].rows; 
+        int width = img_batch[i].cols;
+        // memcpy(cpu_buffers[0], img_batch[i].ptr(), height * width *3);
+        // CUDA_CHECK(cudaMemcpyAsync(img_buffer_device, img_batch[i].ptr(),  height * width *3, cudaMemcpyHostToDevice, stream));
+        float scale = std::min(imageHeight / height, imageWidth / width);
+        cv::Mat s2d = (cv::Mat_<float>(2, 3) << scale, 0.f, (-scale * width + imageWidth + scale - 1) * 0.5,
+        0.f, scale, (-scale * height + imageHeight + scale - 1) * 0.5);
+        cv::Mat d2s = cv::Mat::zeros(2, 3, CV_32FC1);
+        cv::invertAffineTransform(s2d, d2s);
+
+        // memcpy(d2s.value, dst2src.ptr<float>(0), sizeof(d2s.value));
+        dst2src.v0 = d2s.ptr<float>(0)[0];
+        dst2src.v1 = d2s.ptr<float>(0)[1];
+        dst2src.v2 = d2s.ptr<float>(0)[2];
+        dst2src.v3 = d2s.ptr<float>(1)[0];
+        dst2src.v4 = d2s.ptr<float>(1)[1];
+        dst2src.v5 = d2s.ptr<float>(1)[2]; 
+        preprocess(img_batch[i].ptr(), dst2src, width, height, &gpu_buffers[0][bufferSize[0] * i], imageWidth, imageHeight, stream); 
+        CUDA_CHECK(cudaStreamSynchronize(stream));
+    }
+}

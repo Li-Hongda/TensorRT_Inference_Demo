@@ -10,7 +10,6 @@ std::vector<Detections> YOLO::PostProcess(const std::vector<cv::Mat> &imgBatch, 
     for (const cv::Mat &img : imgBatch)
     {
         Detections result;
-        float ratio = std::max(float(img.cols) / float(imageWidth), float(img.rows) / float(imageHeight));
         float *pred_per_img = output + index * predSize;
         for (int position = 0; position < num_rows; position++) {
             float *pred_per_obj = pred_per_img + position * (num_classes + 5);
@@ -19,10 +18,21 @@ std::vector<Detections> YOLO::PostProcess(const std::vector<cv::Mat> &imgBatch, 
             auto max_pos = std::max_element(pred_per_obj + 5, pred_per_obj + num_classes + 5);
             box.score = pred_per_obj[4] * pred_per_obj[max_pos - pred_per_obj];
             box.label = max_pos - pred_per_obj - 5;
-            box.x = pred_per_obj[0] * ratio;
-            box.y = pred_per_obj[1] * ratio;
-            box.w = pred_per_obj[2] * ratio;
-            box.h = pred_per_obj[3] * ratio;
+
+            // 将得到的box坐标映射回原图。
+            auto l = pred_per_obj[0] - pred_per_obj[2] / 2;
+            auto t = pred_per_obj[1] - pred_per_obj[3] / 2;
+            auto r = pred_per_obj[0] + pred_per_obj[2] / 2;
+            auto b = pred_per_obj[1] + pred_per_obj[3] / 2;
+            auto new_l = dst2src.v0 * l + dst2src.v1 * t + dst2src.v2;
+            auto new_r = dst2src.v0 * r + dst2src.v1 * b + dst2src.v2;
+            auto new_t = dst2src.v3 * l + dst2src.v4 * t + dst2src.v5;
+            auto new_b = dst2src.v3 * r + dst2src.v4 * b + dst2src.v5;
+            box.x = new_l;
+            box.y = new_t;
+            box.w = new_r - new_l;
+            box.h = new_b - new_t;
+        
             result.dets.emplace_back(box);
         }
         NMS(result.dets);
@@ -42,7 +52,6 @@ std::vector<Segmentations> YOLO_seg::PostProcess(const std::vector<cv::Mat> &img
     for (const cv::Mat &img : imgBatch)
     {
         Segmentations result;
-        float ratio = std::max(float(img.cols) / float(imageWidth), float(img.rows) / float(imageHeight));
         float *proto = output1 + index * protoSize;
         float *pred_per_img = output2 + index * predSize;
         for (int position = 0; position < num_rows; position++) {
@@ -56,11 +65,19 @@ std::vector<Segmentations> YOLO_seg::PostProcess(const std::vector<cv::Mat> &img
             memcpy(&temp, pred_per_obj + num_classes + 5, 32 * 4);
             ins.score = pred_per_obj[4] * pred_per_obj[max_pos - pred_per_obj];
             ins.label = max_pos - pred_per_obj - 5;
-            ins.x = pred_per_obj[0] * ratio;
-            ins.y = pred_per_obj[1] * ratio;
-            ins.w = pred_per_obj[2] * ratio;
-            ins.h = pred_per_obj[3] * ratio;
-            float box[4] = {ins.x, ins.y, ins.w, ins.h};
+            auto l = pred_per_obj[0] - pred_per_obj[2] / 2;
+            auto t = pred_per_obj[1] - pred_per_obj[3] / 2;
+            auto r = pred_per_obj[0] + pred_per_obj[2] / 2;
+            auto b = pred_per_obj[1] + pred_per_obj[3] / 2;
+            auto new_l = dst2src.v0 * l + dst2src.v1 * t + dst2src.v2;
+            auto new_r = dst2src.v0 * r + dst2src.v1 * b + dst2src.v2;
+            auto new_t = dst2src.v3 * l + dst2src.v4 * t + dst2src.v5;
+            auto new_b = dst2src.v3 * r + dst2src.v4 * b + dst2src.v5;
+            ins.x = new_l;
+            ins.y = new_t;
+            ins.w = new_r - new_l;
+            ins.h = new_b - new_t;
+            float box[4] = {pred_per_obj[0], pred_per_obj[1], pred_per_obj[2], pred_per_obj[3]};
             auto scale_box = get_downscale_rect(box, 4);
             for (int x = scale_box.x; x < scale_box.x + scale_box.width; x++) {
                 for (int y = scale_box.y; y < scale_box.y + scale_box.height; y++) {

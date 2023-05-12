@@ -27,16 +27,18 @@ InstanceSegmentation::InstanceSegmentation(const YAML::Node &config) : Model(con
 
 std::vector<Segmentations> InstanceSegmentation::InferenceImages(std::vector<cv::Mat> &imgBatch) {
     auto t_start_pre = std::chrono::high_resolution_clock::now();
-    std::vector<float> image_data = PreProcess(imgBatch);
+    // std::vector<float> image_data = PreProcess(imgBatch);
+    batch_preprocess(imgBatch);    
     auto t_end_pre = std::chrono::high_resolution_clock::now();
     float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
 
-    CUDA_CHECK(cudaMemcpyAsync(gpu_buffers[0], image_data.data(), bufferSize[0], cudaMemcpyHostToDevice, stream));
+    // CUDA_CHECK(cudaMemcpyAsync(gpu_buffers[0], image_data.data(), bufferSize[0], cudaMemcpyHostToDevice, stream));
 
     //gpu inference
     auto t_start = std::chrono::high_resolution_clock::now();
     // this->context->executeV2(gpu_buffers);
-    this->context->enqueueV2(gpu_buffers, stream, nullptr);
+    auto gpu_buf = (void **)gpu_buffers;
+    this->context->enqueueV2(gpu_buf, stream, nullptr); 
     auto t_end = std::chrono::high_resolution_clock::now();
     float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();
     for(int i=1;i<engine->getNbBindings(); ++i){
@@ -120,7 +122,7 @@ void InstanceSegmentation::Inference(const std::string &input_path, const std::s
     std::vector<std::string> imgInfo;
     imgInfo.reserve(batchSize);
     float total_time = 0;
-
+    cuda_preprocess_init(kMaxInputImageSize);
     for (const std::string &image_name : image_list) {
         index++;
         // TODO: figure out why double free.
@@ -202,9 +204,7 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
         auto instances = segmentations[i].segs;
         for(const auto &ins : instances) {
             auto mask = ins.mask;
-            cv::Mat img_mask;
-            cv::Rect rec = cv::Rect(0, 0, img.cols, img.rows);
-            cv::resize(mask(rec), img_mask, img.size());
+            cv::Mat img_mask = scale_mask(mask, img);
             std::vector<cv::Mat> contours;
             cv::Mat hierarchy;
             cv::Mat colored_img = img.clone();
@@ -217,14 +217,14 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
 
             auto score = cv::format("%.3f", ins.score);
             std::string text = class_labels[ins.label] + "|" + score;
-            cv::Point org;
-            org.x = ins.x - ins.w / 2;
-            org.y = ins.y - ins.h / 2 - 5;
             cv::Size text_size = cv::getTextSize(text, font_face, font_scale, thickness, nullptr);
+            cv::Point org;
+            org.x = ins.x ;
+            org.y = ins.y + text_size.height + 2;
             cv::Rect text_back = cv::Rect(org.x, org.y - text_size.height, text_size.width, text_size.height + 5); 
             cv::rectangle(img, text_back, class_colors[ins.label], -1);
             cv::putText(img, text, org, font_face, font_scale, cv::Scalar(255, 255, 255), thickness);
-            cv::Rect rect(ins.x - ins.w / 2, ins.y - ins.h / 2, ins.w, ins.h);
+            cv::Rect rect(ins.x, ins.y, ins.w, ins.h);
             cv::rectangle(img, rect, class_colors[ins.label], 2, cv::LINE_8, 0);
         }
         std::string img_name = image_names[i];
@@ -257,4 +257,25 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
         writer.write(frame);
     }
     writer.release();    
+}
+
+cv::Mat InstanceSegmentation::scale_mask(cv::Mat mask, cv::Mat img) {
+  int x, y, w, h;
+  float r_w = imageWidth / (img.cols * 1.0);
+  float r_h = imageHeight / (img.rows * 1.0);
+  if (r_h > r_w) {
+    w = imageWidth;
+    h = r_w * img.rows;
+    x = 0;
+    y = (imageHeight - h) / 2;
+  } else {
+    w = r_h * img.cols;
+    h = imageHeight;
+    x = (imageWidth - w) / 2;
+    y = 0;
+  }
+  cv::Rect r(x, y, w, h);
+  cv::Mat res;
+  cv::resize(mask(r), res, img.size());
+  return res;
 }

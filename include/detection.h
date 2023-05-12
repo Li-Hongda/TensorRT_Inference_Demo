@@ -71,7 +71,7 @@ struct Box {
     int label;
     float score;
 };
-
+const static int kMaxInputImageSize = 1024 * 1024;
 struct Detections {
     std::vector<Box> dets;
 };
@@ -88,6 +88,7 @@ public:
                      std::vector<std::string> image_names);
     void Visualize(const std::vector<Detections> &detections, std::vector<cv::Mat> &imgBatch,
                      cv::String save_name, int fps, cv::Size size); 
+    cv::Rect get_rect(cv::Mat& img, float bbox[4]);
     static float DIoU(const Box &det_a, const Box &det_b);
 
 protected:

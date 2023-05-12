@@ -1,13 +1,13 @@
 yolov7:
-    onnx_file:     "../weights/yolov7/yolov7.onnx"
-    engine_file:   "../weights/yolov7/yolov7.trt"
+    onnx_file:     "../weights/yolov7/yolov7x.onnx"
+    engine_file:   "../weights/yolov7/yolov7x.trt"
     type:          "coco80"
     mode:          "fp32"
     batchSize:     1
     inputChannel:  3
     imageWidth:    640
     imageHeight:   640
-    obj_threshold: 0.4
+    obj_threshold: 0.25
     nms_threshold: 0.45
     strides:       [8, 16, 32]
     imgMean:       [ 0, 0, 0 ]

@@ -7,8 +7,8 @@ rtdetr:
     inputChannel:  3
     imageWidth:    640
     imageHeight:   640
-    obj_threshold: 0.25
-    nms_threshold: 0.45
+    conf_thr:      0.25
+    nms_thr:       0.45
     strides:       [8, 16, 32]
     imgMean:       [ 0, 0, 0 ]
     imgStd:        [ 1, 1, 1 ]

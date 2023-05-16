@@ -2,7 +2,7 @@
 #define BASEMODEL_H
 
 #include "common.h"
-#include "cuda_preprocess.h"
+#include "cuda_function.h"
 
 class Model
 {
@@ -16,8 +16,7 @@ public:
 protected:
     bool ReadTrtFile();
     void OnnxToTRTModel();
-    std::vector<float> PreProcess(std::vector<cv::Mat> &image);
-    void batch_preprocess(std::vector<cv::Mat> &image);
+    void PreProcess(std::vector<cv::Mat> &image);
     std::string onnx_file;
     std::string engine_file;
     std::string mode;
@@ -27,8 +26,9 @@ protected:
     int imageWidth;
     int imageHeight;
     std::string names[10];
-    float **cpu_buffers = new float* [10];
-    float *gpu_buffers[10]{};
+    float** cpu_buffers = new float* [10];
+    float* gpu_buffers[10]{};
+    // float* cpu_mask_buffer = nullptr;
     std::vector<int64_t> bufferSize;    
     std::shared_ptr<nvinfer1::ICudaEngine> engine;
     std::unique_ptr<nvinfer1::IExecutionContext> context;

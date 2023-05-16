@@ -11,6 +11,7 @@ struct Instance {
     int label;
     float score;    
     cv::Mat mask;
+    float pred_mask[32];
 };
 
 struct Segmentations {
@@ -32,11 +33,12 @@ public:
     cv::Mat scale_mask(cv::Mat mask, cv::Mat img);
 
 protected:
-    virtual std::vector<Segmentations> PostProcess(const std::vector<cv::Mat> &vec_Mat, float *output1, float *output2)=0;
+    virtual std::vector<Segmentations> PostProcess(const std::vector<cv::Mat> &vec_Mat, float* output1, float* output2)=0;
     void NMS(std::vector<Instance> &segmentations);
+    uint8_t* cpu_mask_buffer = nullptr;
     int num_classes;
-    float obj_threshold;
-    float nms_threshold;
+    float conf_thr;
+    float nms_thr;
     std::string type;
     std::vector<std::string> class_labels;
     std::vector<cv::Scalar> class_colors;

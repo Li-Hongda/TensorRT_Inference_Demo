@@ -3,17 +3,17 @@
 
 RTDETR::RTDETR(const YAML::Node &config) : Detection(config) {}
 
-std::vector<Detections> RTDETR::PostProcess(const std::vector<cv::Mat> &imgBatch, float *output) {
+std::vector<Detections> RTDETR::PostProcess(const std::vector<cv::Mat> &imgBatch, float* output) {
     std::vector<Detections> vec_result;
     int index = 0;
     auto predSize = bufferSize[1] / sizeof(float);
     for (const cv::Mat &img : imgBatch)
     {
         Detections result;
-        float *pred_per_img = output + index * predSize;
+        float* pred_per_img = output + index * predSize;
         for (int position = 0; position < num_rows; position++) {
-            float *pred_per_obj = pred_per_img + position * (num_classes + 5);
-            if (pred_per_obj[4] < obj_threshold) continue;
+            float* pred_per_obj = pred_per_img + position * (num_classes + 5);
+            if (pred_per_obj[4] < conf_thr) continue;
             Box box;
             auto max_pos = std::max_element(pred_per_obj + 5, pred_per_obj + num_classes + 5);
             box.score = pred_per_obj[4] * pred_per_obj[max_pos - pred_per_obj];

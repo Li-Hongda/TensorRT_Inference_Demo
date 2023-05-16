@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 set(CMAKE_BUILD_TYPE "Debug")
 #set(CMAKE_BUILD_TYPE "Release")
 
-project(yolov7)
+project(rtdetr)
 
 set(CMAKE_CXX_STANDARD 14)
 
@@ -21,12 +21,11 @@ list(APPEND ALL_INCLUDE ${PROJECT_INCLUDE})
 set(PROJECT_LIBRARY ../../src/common.cpp  
                     ../../src/basemodel.cpp 
                     ../../src/detection.cpp 
-                    ../../src/yolo.cpp 
-                    ../../src/yolov7.cpp
+                    ../../src/rtdetr.cpp
                     ../../src/cuda_function.cu)
 
 include_directories(${ALL_INCLUDE})
 
 set(LIBRARY_OUTPUT_PATH ../../libs)
-add_library(yolov7 SHARED ${PROJECT_LIBRARY} ${SAMPLES_LIBRARY})
-target_link_libraries(yolov7 ${ALL_LIBS} yaml-cpp)
+add_library(rtdetr SHARED ${PROJECT_LIBRARY} ${SAMPLES_LIBRARY})
+target_link_libraries(rtdetr ${ALL_LIBS} yaml-cpp)

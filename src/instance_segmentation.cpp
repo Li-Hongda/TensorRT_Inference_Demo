@@ -1,11 +1,11 @@
 #include "instance_segmentation.h"
 
 InstanceSegmentation::InstanceSegmentation(const YAML::Node &config) : Model(config) {
-    obj_threshold = config["obj_threshold"].as<float>();
-    nms_threshold = config["nms_threshold"].as<float>();
+    conf_thr = config["conf_thr"].as<float>();
+    nms_thr = config["nms_thr"].as<float>();
     type = config["type"].as<std::string>();
     strides = config["strides"].as<std::vector<int>>();
-
+    cpu_mask_buffer = (uint8_t*) malloc(imageHeight * imageWidth * sizeof(uint8_t) / 16);
     int index = 0;
     for (const int &stride : strides)
     {
@@ -25,16 +25,13 @@ InstanceSegmentation::InstanceSegmentation(const YAML::Node &config) : Model(con
 
 }
 
+#if 0 //CPU postprocess deprecated 
 std::vector<Segmentations> InstanceSegmentation::InferenceImages(std::vector<cv::Mat> &imgBatch) {
     auto t_start_pre = std::chrono::high_resolution_clock::now();
-    // std::vector<float> image_data = PreProcess(imgBatch);
-    batch_preprocess(imgBatch);    
+    PreProcess(imgBatch);    
     auto t_end_pre = std::chrono::high_resolution_clock::now();
     float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
 
-    // CUDA_CHECK(cudaMemcpyAsync(gpu_buffers[0], image_data.data(), bufferSize[0], cudaMemcpyHostToDevice, stream));
-
-    //gpu inference
     auto t_start = std::chrono::high_resolution_clock::now();
     // this->context->executeV2(gpu_buffers);
     auto gpu_buf = (void **)gpu_buffers;
@@ -54,6 +51,32 @@ std::vector<Segmentations> InstanceSegmentation::InferenceImages(std::vector<cv:
     "postprocess time: " << total_post << " ms." << std::endl;
     return boxes;
 }
+#endif
+
+#if 1
+std::vector<Segmentations> InstanceSegmentation::InferenceImages(std::vector<cv::Mat> &imgBatch) {
+    auto t_start_pre = std::chrono::high_resolution_clock::now();
+    PreProcess(imgBatch);    
+    auto t_end_pre = std::chrono::high_resolution_clock::now();
+    float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
+
+    auto t_start = std::chrono::high_resolution_clock::now();
+    auto gpu_buf = (void **)gpu_buffers;
+    this->context->enqueueV2(gpu_buf, stream, nullptr); 
+    auto t_end = std::chrono::high_resolution_clock::now();
+    float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();
+    CUDA_CHECK(cudaMemcpyAsync(cpu_buffers[1], gpu_buffers[1], bufferSize[1], cudaMemcpyDeviceToHost, stream));    
+    auto t_start_post = std::chrono::high_resolution_clock::now();
+    auto boxes = PostProcess(imgBatch, cpu_buffers[1], gpu_buffers[2]);
+    auto t_end_post = std::chrono::high_resolution_clock::now();
+    float total_post = std::chrono::duration<float, std::milli>(t_end_post - t_start_post).count();
+    std::cout << "preprocess time: "<< total_pre << "ms." <<
+    "detection inference time: " << total_inf << " ms." 
+    "postprocess time: " << total_post << " ms." << std::endl;
+    return boxes;
+}
+#endif
+
 
 void InstanceSegmentation::Inference(const std::string &input_path, const cv::String &save_path, const bool video) {
 
@@ -123,6 +146,7 @@ void InstanceSegmentation::Inference(const std::string &input_path, const std::s
     imgInfo.reserve(batchSize);
     float total_time = 0;
     cuda_preprocess_init(kMaxInputImageSize);
+    // cuda_postprocess_init(39, imageWidth, imageHeight);
     for (const std::string &image_name : image_list) {
         index++;
         // TODO: figure out why double free.
@@ -159,7 +183,7 @@ void InstanceSegmentation::NMS(std::vector<Instance> &segmentations) {
             if (segmentations[i].label == segmentations[j].label)
             {
                 float iou = DIoU(segmentations[i], segmentations[j]);
-                if (iou > nms_threshold)
+                if (iou > nms_thr)
                     segmentations[j].score = 0;
             }
         }
@@ -205,6 +229,7 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
         for(const auto &ins : instances) {
             auto mask = ins.mask;
             cv::Mat img_mask = scale_mask(mask, img);
+            // cv::Mat img_mask = mask;
             std::vector<cv::Mat> contours;
             cv::Mat hierarchy;
             cv::Mat colored_img = img.clone();
@@ -212,7 +237,7 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
             cv::findContours(img_mask, contours, hierarchy, 
                              cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
             cv::drawContours(colored_img, contours, -1, class_colors[ins.label], -1, cv::LINE_8,
-                             hierarchy, 100); 
+                             hierarchy, 100);                             
             img = 0.4 * colored_img + 0.6 * img;
 
             auto score = cv::format("%.3f", ins.score);

@@ -42,7 +42,6 @@ void Model::OnnxToTRTModel() {
     nvinfer1::IHostMemory* data = builder->buildSerializedNetwork(*network, *config);
     assert(data);
     
-
     std::ofstream file;
     file.open(engine_file, std::ios::binary | std::ios::out);
     // sample::gLogInfo << "writing engine file..." << std::endl;
@@ -102,53 +101,18 @@ void Model::LoadEngine(){
         nvinfer1::DataType dtype = engine->getBindingDataType(i);
         names[i] = engine->getBindingName(i);
         int64_t totalSize = sample::volume(dims) * sample::dataTypeSize(dtype);
-        cpu_buffers[i] = (float *)malloc(totalSize);
+        cpu_buffers[i] = (float* )malloc(totalSize);
         bufferSize[i] = totalSize;
         CUDA_CHECK(cudaMalloc(&gpu_buffers[i], totalSize));
     }
-
     //get stream  
     cudaStreamCreate(&stream);
 }
 
-std::vector<float> Model::PreProcess(std::vector<cv::Mat> &imgBatch) {
-    std::vector<float> result(batchSize * imageWidth * imageHeight * inputChannel);
-    float *data = result.data();
-    for (const cv::Mat &img : imgBatch) {
-        if (!img.data)
-            continue;
-        cv::Mat dst_img;
-        if (inputChannel == 1)
-            cv::cvtColor(img, dst_img, cv::COLOR_RGB2GRAY);
-        else if (inputChannel == 3)
-            cv::cvtColor(img, dst_img, cv::COLOR_BGR2RGB);
-        float ratio = std::min(float(imageWidth) / float(img.cols), float(imageHeight) / float(img.rows));
-        dst_img = cv::Mat::zeros(cv::Size(imageWidth, imageHeight), CV_8UC3);
-        cv::Mat rsz_img;
-        cv::resize(img, rsz_img, cv::Size(), ratio, ratio);
-        rsz_img.copyTo(dst_img(cv::Rect(0, 0, rsz_img.cols, rsz_img.rows)));
-        dst_img.convertTo(dst_img, CV_32F, 1 / 255.0);
-        std::vector<cv::Mat> split_img(inputChannel);
-        cv::split(dst_img, split_img);
-
-        int channelLength = imageWidth * imageHeight;
-        for (int i = 0; i < inputChannel; ++i) {
-            split_img[i] = (split_img[i] - imgMean[i]) / imgStd[i];
-            memcpy(data, split_img[i].data, channelLength * sizeof(float));
-            data += channelLength;
-        }
-    }
-    return result;
-}
-
-
-void Model::batch_preprocess(std::vector<cv::Mat>& img_batch) {
+void Model::PreProcess(std::vector<cv::Mat>& img_batch) {
     for (size_t i = 0; i < img_batch.size(); i++) {
-    // cuda_preprocess(img_batch[i].ptr(), img_batch[i].cols, img_batch[i].rows, &dst[dst_size * i], dst_width, dst_height, stream);
         int height = img_batch[i].rows; 
         int width = img_batch[i].cols;
-        // memcpy(cpu_buffers[0], img_batch[i].ptr(), height * width *3);
-        // CUDA_CHECK(cudaMemcpyAsync(img_buffer_device, img_batch[i].ptr(),  height * width *3, cudaMemcpyHostToDevice, stream));
         float scale = std::min(imageHeight / height, imageWidth / width);
         cv::Mat s2d = (cv::Mat_<float>(2, 3) << scale, 0.f, (-scale * width + imageWidth + scale - 1) * 0.5,
         0.f, scale, (-scale * height + imageHeight + scale - 1) * 0.5);

@@ -24,7 +24,7 @@ set(PROJECT_LIBRARY ../../src/common.cpp
                     ../../src/instance_segmentation.cpp
                     ../../src/yolo.cpp 
                     ../../src/yolov8.cpp
-                    ../../src/cuda_preprocess.cu)
+                    ../../src/cuda_function.cu)
 
 include_directories(${ALL_INCLUDE})
 

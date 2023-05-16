@@ -68,8 +68,8 @@ struct Box {
     float y;
     float w;
     float h;
-    int label;
     float score;
+    int label;
 };
 const static int kMaxInputImageSize = 1024 * 1024;
 struct Detections {
@@ -92,11 +92,11 @@ public:
     static float DIoU(const Box &det_a, const Box &det_b);
 
 protected:
-    virtual std::vector<Detections> PostProcess(const std::vector<cv::Mat> &vec_Mat, float *output)=0;
+    virtual std::vector<Detections> PostProcess(const std::vector<cv::Mat> &vec_Mat, float* output)=0;
     void NMS(std::vector<Box> &detections);    
     int num_classes;
-    float obj_threshold;
-    float nms_threshold;
+    float conf_thr;
+    float nms_thr;
     std::string type;
     std::vector<std::string> class_labels;
     std::vector<cv::Scalar> class_colors;

@@ -81,27 +81,22 @@ class Detection : public Model
 public:
 
     explicit Detection(const YAML::Node &config);
-    std::vector<Detections> InferenceImages(std::vector<cv::Mat> &imgBatch) noexcept;
+    virtual std::vector<Detections> InferenceImages(std::vector<cv::Mat> &imgBatch) = 0;
     void Inference(const std::string &input_path, const std::string &save_path, const bool video) override;
-    virtual void Inference(const std::string &input_path, const std::string &save_path) override;
+    void Inference(const std::string &input_path, const std::string &save_path) override;
     void Visualize(const std::vector<Detections> &detections, std::vector<cv::Mat> &imgBatch,
                      std::vector<std::string> image_names);
     void Visualize(const std::vector<Detections> &detections, std::vector<cv::Mat> &imgBatch,
                      cv::String save_name, int fps, cv::Size size); 
-    cv::Rect get_rect(cv::Mat& img, float bbox[4]);
-    static float DIoU(const Box &det_a, const Box &det_b);
 
 protected:
-    virtual std::vector<Detections> PostProcess(const std::vector<cv::Mat> &vec_Mat, float* output)=0;
-    void NMS(std::vector<Box> &detections);    
+    virtual std::vector<Detections> PostProcess(const std::vector<cv::Mat> &vec_Mat, float* output);
     int num_classes;
     float conf_thr;
-    float nms_thr;
     std::string type;
     std::vector<std::string> class_labels;
     std::vector<cv::Scalar> class_colors;
-    std::vector<int> strides;
-    int num_rows = 0;
+    int num_bboxes = 0;
 };
 
 #endif

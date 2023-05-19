@@ -5,7 +5,6 @@ Model::Model(const YAML::Node &config) {
     engine_file = config["engine_file"].as<std::string>();
     mode = config["mode"].as<std::string>();
     batchSize = config["batchSize"].as<int>();
-    inputChannel = config["inputChannel"].as<int>();
     imageWidth = config["imageWidth"].as<int>();
     imageHeight = config["imageHeight"].as<int>();
     imgMean = config["imgMean"].as<std::vector<float>>();
@@ -44,9 +43,7 @@ void Model::OnnxToTRTModel() {
     
     std::ofstream file;
     file.open(engine_file, std::ios::binary | std::ios::out);
-    // sample::gLogInfo << "writing engine file..." << std::endl;
     file.write((const char *) data->data(), data->size());
-    // sample::gLogInfo << "save engine file done" << std::endl;
     file.close();
 
     delete parser;

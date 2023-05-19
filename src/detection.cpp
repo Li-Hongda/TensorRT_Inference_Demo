@@ -2,17 +2,8 @@
 
 Detection::Detection(const YAML::Node &config) : Model(config) {
     conf_thr = config["conf_thr"].as<float>();
-    nms_thr = config["nms_thr"].as<float>();
     type = config["type"].as<std::string>();
-    strides = config["strides"].as<std::vector<int>>();
 
-    int index = 0;
-    for (const int &stride : strides)
-    {
-        num_rows += int(imageHeight / stride) * int(imageWidth / stride) * 3;
-        index+=1;
-    } 
-    
     if (type == "coco80"){
         class_colors = Color::coco80;
         class_labels = Category::coco80;
@@ -23,59 +14,6 @@ Detection::Detection(const YAML::Node &config) : Model(config) {
     }
     num_classes = class_labels.size();
 
-}
-#if 0 //CPU postprocess deprecated
-std::vector<Detections> Detection::InferenceImages(std::vector<cv::Mat> &imgBatch) noexcept{
-    auto t_start_pre = std::chrono::high_resolution_clock::now();
-    PreProcess(imgBatch);
-    auto t_end_pre = std::chrono::high_resolution_clock::now();
-    float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
-
-    //gpu inference
-    auto t_start = std::chrono::high_resolution_clock::now();
-    // this->context->executeV2(gpu_buffers);
-    auto gpu_buf = (void **)gpu_buffers;
-    this->context->enqueueV2(gpu_buf, stream, nullptr);
-    auto t_end = std::chrono::high_resolution_clock::now();
-    float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();
-    for(int i=1;i<engine->getNbBindings(); ++i){
-        CUDA_CHECK(cudaMemcpyAsync(cpu_buffers[i], gpu_buffers[i], bufferSize[i], cudaMemcpyDeviceToHost, stream));
-    } 
-    cudaStreamSynchronize(stream); 
-    
-    auto t_start_post = std::chrono::high_resolution_clock::now();
-    auto boxes = PostProcess(imgBatch, cpu_buffers[1]);
-    auto t_end_post = std::chrono::high_resolution_clock::now();
-    float total_post = std::chrono::duration<float, std::milli>(t_end_post - t_start_post).count();
-    std::cout << "preprocess time: "<< total_pre << "ms." <<
-    "detection inference time: " << total_inf << " ms." 
-    "postprocess time: " << total_post << " ms." << std::endl; 
-    return boxes;
-}
-#endif
-
-
-std::vector<Detections> Detection::InferenceImages(std::vector<cv::Mat> &imgBatch) noexcept{
-    auto t_start_pre = std::chrono::high_resolution_clock::now();
-    PreProcess(imgBatch);
-    auto t_end_pre = std::chrono::high_resolution_clock::now();
-    float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
-
-    //gpu inference
-    auto t_start = std::chrono::high_resolution_clock::now();
-    auto gpu_buf = (void **)gpu_buffers;
-    this->context->enqueueV2(gpu_buf, stream, nullptr);
-    auto t_end = std::chrono::high_resolution_clock::now();
-    float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();
-    
-    auto t_start_post = std::chrono::high_resolution_clock::now();
-    auto boxes = PostProcess(imgBatch, gpu_buffers[1]);
-    auto t_end_post = std::chrono::high_resolution_clock::now();
-    float total_post = std::chrono::duration<float, std::milli>(t_end_post - t_start_post).count();
-    std::cout << "preprocess time: "<< total_pre << "ms." <<
-    "detection inference time: " << total_inf << " ms." 
-    "postprocess time: " << total_post << " ms." << std::endl; 
-    return boxes;
 }
 
 void Detection::Inference(const std::string &input_path, const cv::String &save_path, const bool video) {
@@ -172,49 +110,8 @@ void Detection::Inference(const std::string &input_path, const std::string &save
     std::cout << "Average FPS is " << 1000 * image_list.size() / total_time << std::endl;
 }
 
-void Detection::NMS(std::vector<Box> &detections) {
-    sort(detections.begin(), detections.end(), [=](const Box &left, const Box &right) {
-        return left.score > right.score;
-    });
+std::vector<Detections> Detection::PostProcess(const std::vector<cv::Mat> &vec_Mat, float* output) {}
 
-    for (int i = 0; i < (int)detections.size(); i++)
-        for (int j = i + 1; j < (int)detections.size(); j++)
-        {
-            if (detections[i].label == detections[j].label)
-            {
-                float iou = DIoU(detections[i], detections[j]);
-                if (iou > nms_thr)
-                    detections[j].score = 0;
-            }
-        }
-
-    detections.erase(std::remove_if(detections.begin(), detections.end(), [](const Box &det)
-    { return det.score == 0; }), detections.end());
-}
-
-float Detection::DIoU(const Box &det_a, const Box &det_b) {
-    cv::Point2f center_a(det_a.x + det_a.w / 2, det_a.y + det_a.h / 2);
-    cv::Point2f center_b(det_b.x + det_b.w / 2, det_b.y + det_b.h / 2);
-
-    cv::Point2f left_up(std::min(det_a.x, det_b.x), std::min(det_a.y, det_b.y));
-    cv::Point2f right_down(std::max(det_a.x + det_a.w, det_b.x + det_b.w),
-                           std::max(det_a.y + det_a.h, det_b.y + det_b.h));
-    float distance_d = pow((center_a - center_b).x , 2) + pow((center_a - center_b).y, 2) ;
-    float distance_c = pow((left_up - right_down).x, 2) + pow((left_up - right_down).y, 2);
-    float inter_l = std::max(det_a.x, det_b.x);
-    float inter_t = std::max(det_a.y, det_b.y);
-    float inter_r = std::min(det_a.x + det_a.w, det_b.x + det_b.w);
-    float inter_b = std::min(det_a.y + det_a.h, det_b.y + det_b.h);
-    if (inter_b < inter_t || inter_r < inter_l)
-        return 0;
-    float inter_area = (inter_b - inter_t) * (inter_r - inter_l);
-    float union_area = det_a.w * det_a.h + det_b.w * det_b.h - inter_area;
-    if (union_area == 0)
-        return 0;
-    else
-        // return inter_area / union_area;
-        return inter_area / union_area - distance_d / distance_c;
-}
 
 void Detection::Visualize(const std::vector<Detections> &detections, 
                           std::vector<cv::Mat> &imgBatch,

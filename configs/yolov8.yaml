@@ -1,10 +1,9 @@
 yolov8:
-    onnx_file:     "../weights/yolov8/yolov8m.onnx"
-    engine_file:   "../weights/yolov8/yolov8m.trt"
+    onnx_file:     "../weights/yolov8/yolov8s.onnx"
+    engine_file:   "../weights/yolov8/yolov8s.trt"
     type:          "coco80"
     mode:          "fp32"
     batchSize:     1
-    inputChannel:  3
     imageWidth:    640
     imageHeight:   640
     conf_thr:      0.25

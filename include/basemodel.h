@@ -22,7 +22,6 @@ protected:
     std::string mode;
     AffineMatrix dst2src;
     int batchSize;
-    int inputChannel;
     int imageWidth;
     int imageHeight;
     std::string names[10];

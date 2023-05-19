@@ -1,14 +1,12 @@
 rtdetr:
-    onnx_file:     "../weights/rtdetr/rtdetr_r50vd_6x_coco.onnx"
-    engine_file:   "../weights/rtdetr/rtdetr_r50vd.trt"
+    onnx_file:     "../weights/rtdetr/rtdetr_hgnetv2_l_6x_coco.onnx"
+    engine_file:   "../weights/rtdetr/rtdetr_hgnetl.trt"
     type:          "coco80"
     mode:          "fp32"
     batchSize:     1
-    inputChannel:  3
     imageWidth:    640
     imageHeight:   640
-    conf_thr:      0.25
-    nms_thr:       0.45
-    strides:       [8, 16, 32]
+    conf_thr:      0.5
+    num_queries:   300
     imgMean:       [ 0, 0, 0 ]
     imgStd:        [ 1, 1, 1 ]

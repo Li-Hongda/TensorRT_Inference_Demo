@@ -20,11 +20,14 @@ void preprocess(uint8_t* src, AffineMatrix d2s, int src_width, int src_height,
                      cudaStream_t stream);					 
 
 
-void postprocess_box(float* predict, int num_bboxes, int num_out, int num_classes, float conf_thr,
+void postprocess_box(float* predict, int num_bboxes, int num_classes, int num_out, float conf_thr,
 				float nms_thr, cudaStream_t stream, float* dst);
 
-void yolov8_postprocess_box(float* predict, int num_bboxes, int num_out, int num_classes, float conf_thr,
+void yolov8_postprocess_box(float* predict, int num_bboxes, int num_classes, int num_out, float conf_thr,
 				float nms_thr, cudaStream_t stream, float* dst);
+
+void rtdetr_postprocess_box(float* predict_box, float* predict_cls, int num_bboxes,  int num_classes, int num_out,
+							float conf_thr, int imageWidth, int imageHeight, cudaStream_t stream, float* dst);
 
 void postprocess_box_mask(float* predict, int num_bboxes, int num_classes, int num_out, 
 						  float conf_thr, float nms_thr, cudaStream_t stream, float* dst);

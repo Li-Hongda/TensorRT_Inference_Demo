@@ -8,13 +8,13 @@ static uint8_t* img_buffer_device = nullptr;
 static float* out_buffer_host = nullptr;
 static float* out_buffer_device = nullptr;
 static uint8_t* out_mask_buffer_device = nullptr;
-// static float* single_out_buffer_device = nullptr;
+static float* single_out_buffer_device = nullptr;
 
 void cuda_postprocess_init(int num_out, int width, int height) {
 	CUDA_CHECK(cudaMallocHost((void**)&out_buffer_host, (1 + 1000 * num_out) * sizeof(float)));
 	CUDA_CHECK(cudaMalloc((void**)&out_buffer_device, (1 + 1000 * num_out) * sizeof(float)));
 	CUDA_CHECK(cudaMalloc((void**)&out_mask_buffer_device, width * height * sizeof(uint8_t) / 16 ));
-	// CUDA_CHECK(cudaMalloc((void**)&single_out_buffer_device, num_out * sizeof(float)));
+	CUDA_CHECK(cudaMalloc((void**)&single_out_buffer_device, num_out * sizeof(float)));
 
 }
 
@@ -189,17 +189,14 @@ static __global__ void decode_box_kernel(float* predict, int num_bboxes, int num
     float height = pred_per_obj[3];	
     float left = cx - width * 0.5f;
     float top = cy - height * 0.5f;
-    float right = cx + width * 0.5f;
-    float bottom = cy + height * 0.5f;
-
 
     int index = atomicAdd(parray, 1);
     
     float* pout_item = parray + 1 + index * num_out;
     pout_item[0] = left;
     pout_item[1] = top;
-    pout_item[2] = right - left;
-    pout_item[3] = bottom - top;
+    pout_item[2] = width;
+    pout_item[3] = height;
     pout_item[4] = score;
     pout_item[5] = label;
 	pout_item[6] = 1;		
@@ -232,20 +229,57 @@ static __global__ void yolov8_decode_box_kernel(float* predict, int num_bboxes, 
     float height = pred_per_obj[3];	
     float left = cx - width * 0.5f;
     float top = cy - height * 0.5f;
-    float right = cx + width * 0.5f;
-    float bottom = cy + height * 0.5f;
-
 
     int index = atomicAdd(parray, 1);
     
     float* pout_item = parray + 1 + index * num_out;
     pout_item[0] = left;
     pout_item[1] = top;
-    pout_item[2] = right - left;
-    pout_item[3] = bottom - top;
+    pout_item[2] = width;
+    pout_item[3] = height;
     pout_item[4] = score;
     pout_item[5] = label;
 	pout_item[6] = 1;		
+}
+
+
+static __global__ void rtdetr_decode_box_kernel(float* predict_box, float* predict_cls, int num_bboxes, 
+                                                int num_out, int num_classes, float confidence_threshold,
+    									        int imgWidth, int imgHeight, float* parray) {
+    int position = blockDim.x * blockIdx.x + threadIdx.x;
+    if (position >= num_bboxes) return;
+
+    float* box_pre_obj = predict_box + position * 4;
+	
+    float* cls_score = predict_cls + position * 80;
+
+    float score = *cls_score++;
+
+    int label = 0;
+    for (int i = 1; i < num_classes; i++, ++cls_score) {
+        if (*cls_score > score) {   
+            score = *cls_score;
+            label = i;
+        }
+    }
+    score = sigmoid(score);
+    if (score < confidence_threshold) return;
+    float cx = box_pre_obj[0] * imgWidth;
+    float cy = box_pre_obj[1] * imgHeight;
+    float width = box_pre_obj[2] * imgWidth;
+    float height = box_pre_obj[3] * imgHeight;	
+    float left = cx - width * 0.5f;
+    float top = cy - height * 0.5f;
+
+    int index = atomicAdd(parray, 1);
+    
+    float* pout_item = parray + 1 + index * num_out;
+    pout_item[0] = left;
+    pout_item[1] = top;
+    pout_item[2] = width;
+    pout_item[3] = height;
+    pout_item[4] = score;
+    pout_item[5] = label;	
 }
 
 
@@ -277,17 +311,14 @@ static __global__ void decode_box_mask_kernel(float* predict, int num_bboxes, in
     float height = pred_per_obj[3];	
     float left = cx - width * 0.5f;
     float top = cy - height * 0.5f;
-    float right = cx + width * 0.5f;
-    float bottom = cy + height * 0.5f;
-
 
     int index = atomicAdd(parray, 1);
     
     float* pout_item = parray + 1 + index * num_out;
     pout_item[0] = left;
     pout_item[1] = top;
-    pout_item[2] = right - left;
-    pout_item[3] = bottom - top;
+    pout_item[2] = width;
+    pout_item[3] = height;
     pout_item[4] = score;
     pout_item[5] = label;
 	pout_item[6] = 1;	
@@ -323,17 +354,14 @@ static __global__ void yolov8_decode_box_mask_kernel(float* predict, int num_bbo
     float height = pred_per_obj[3];	
     float left = cx - width * 0.5f;
     float top = cy - height * 0.5f;
-    float right = cx + width * 0.5f;
-    float bottom = cy + height * 0.5f;
-
 
     int index = atomicAdd(parray, 1);
     
     float* pout_item = parray + 1 + index * num_out;
     pout_item[0] = left;
     pout_item[1] = top;
-    pout_item[2] = right - left;
-    pout_item[3] = bottom - top;
+    pout_item[2] = width;
+    pout_item[3] = height;
     pout_item[4] = score;
     pout_item[5] = label;
 	pout_item[6] = 1;	
@@ -342,32 +370,30 @@ static __global__ void yolov8_decode_box_mask_kernel(float* predict, int num_bbo
 	}
 }
 
-// static __global__ void process_mask_kernel(float* out, float* proto, uint8_t* dst ,
-// 										   int dst_width, int dst_height, int out_w, int proto_size) {
-// 	int position = blockDim.x * blockIdx.x + threadIdx.x;
-//     // int count = (int)*out;
-//     // if (position > count) return; 	
-// 	if (position > proto_size) return;
-// 	// float* pcurrent = out + 1  + position * 39;
-//     // for (int i = 0; i < count; ++i){
-// 	// float* pitem = out + 1 + i * 39;	
-// 	float c = 0;
-// 	int dx = position / proto_size;
-// 	int dy = position % proto_size;
+static __global__ void process_mask_kernel(float* out, float* proto, uint8_t* dst , 
+										   int dst_width, int dst_height, int out_w, int proto_size) {
+    int dx = blockDim.x * blockIdx.x + threadIdx.x;
+    int dy = blockDim.y * blockIdx.y + threadIdx.y;
+    int left = out[0] / 4;
+    int top = out[1] / 4;
 
-// 	for(int j = 0; j < out_w; j++){
-// 		c += out[7 + j] * proto[j * proto_size + dy];
-// 	}
-// 	dst[dy] = c;
-// 	if (sigmoid(c) > 0.5) {
-// 		dst[dx * proto_size + dy] = 1;
-// 	} else {
-// 		dst[dx * proto_size + dy] = 0;
-// 	}
-// 	position += gridDim.x * blockDim.x;
-// 	// }
-// }
-
+    int cx = left + dx;
+    int cy = top + dy;
+    if (cx >= dst_width || cy >= dst_height) return;
+    if (cx < 0 || cx >= dst_width || cy < 0 || cy >= dst_height) {
+        dst[cy * dst_width + cx] = 0;
+        return;
+    }
+    float c = 0;
+	for(int j = 0; j < out_w; ++j){
+		c += out[j + 7] * proto[(j * dst_height + cy) * dst_width + cx];
+	}
+	if (sigmoid(c) > 0.5) {
+        dst[cy * dst_width + cx] = 1;
+	} else {
+        dst[cy * dst_width + cx] = 0;
+	}
+}
 
 void preprocess(uint8_t* src, AffineMatrix d2s, int src_width, 
 				int src_height, float* dst, int dst_width, 
@@ -410,6 +436,16 @@ void yolov8_postprocess_box(float* predict, int num_bboxes, int num_classes, int
 	CUDA_CHECK(cudaStreamSynchronize(stream));
 }
 
+void rtdetr_postprocess_box(float* predict_box, float* predict_cls, int num_bboxes, int num_classes, int num_out,
+	                        float conf_thr, int imageWidth, int imageHeight, cudaStream_t stream, float* dst) {
+    auto block = num_bboxes > 512 ? 512 : num_bboxes;
+    auto grid = (num_bboxes + block - 1) / block;
+    rtdetr_decode_box_kernel<<<grid, block, 0, stream>>>(predict_box, predict_cls, num_bboxes, num_out, num_classes, 
+												  conf_thr,imageWidth, imageHeight, out_buffer_device);
+	CUDA_CHECK(cudaMemcpyAsync(dst, out_buffer_device, sizeof(int) + 300 * num_out * sizeof(float), cudaMemcpyDeviceToHost, stream));
+	CUDA_CHECK(cudaStreamSynchronize(stream));
+}
+
 void postprocess_box_mask(float* predict, int num_bboxes, int num_classes, 
 	int num_out, float conf_thr, float nms_thr, cudaStream_t stream, float* dst) {
     auto block = num_bboxes > 512 ? 512 : num_bboxes;
@@ -436,24 +472,20 @@ void yolov8_postprocess_box_mask(float* predict, int num_bboxes, int num_classes
 	CUDA_CHECK(cudaStreamSynchronize(stream));
 }
 
-
-
-// void process_mask(float* out, float* proto, uint8_t* dst , int num_out, int dst_width, 
-// 				  int dst_height, int out_w, int proto_size, cudaStream_t stream) {
-// 	dim3 blockSize(32, 32);
-//     dim3 gridSize((dst_width + blockSize.x - 1) / blockSize.x, 
-//         (dst_height + blockSize.y - 1) / blockSize.y);
-// 	// int threads = 512;
-// 	// int blocks = ceil(proto_size / threads);
-// 	// CUDA_CHECK(cudamemcpyH)
-// 	// memcpy(proto_buffer_host, proto, proto_size);
-// 	CUDA_CHECK(cudaMemcpyAsync(single_out_buffer_device, out, 
-// 		num_out * sizeof(float), cudaMemcpyHostToDevice, stream));
-// 	process_mask_kernel<<<gridSize, blockSize, 0, stream>>>(single_out_buffer_device, proto, out_mask_buffer_device, 
-// 					   dst_width, dst_height, out_w, proto_size);
-// 	// process_mask_kernel<<<blocks, threads, 0, stream>>>(single_out_buffer_device, proto, out_mask_buffer_device, 
-// 	// 				   dst_width, dst_height, out_w, proto_size);
-// 	cudaDeviceSynchronize();
-// 	CUDA_CHECK(cudaMemcpyAsync(dst, out_mask_buffer_device, sizeof(uint8_t) * (dst_width * dst_height), cudaMemcpyDeviceToHost, stream));
-// 	CUDA_CHECK(cudaStreamSynchronize(stream));
-// }
+void process_mask(float* out, float* proto, uint8_t* dst , int num_out, 
+                  int dst_width, int dst_height, int out_w, int proto_size, cudaStream_t stream) {
+	// int threads = 512;
+	// int blocks = ceil(proto_size / threads);
+	// CUDA_CHECK(cudamemcpyH)
+	// memcpy(proto_buffer_host, proto, proto_size);
+    int width = out[2] / 4 + 0.5f;
+    int height = out[3] / 4 + 0.5f;
+	dim3 blockSize(32, 32);
+    dim3 gridSize((width + 31) / 32, (height + 31) / 32);   
+	CUDA_CHECK(cudaMemcpyAsync(single_out_buffer_device, out, 
+		num_out * sizeof(float), cudaMemcpyHostToDevice, stream));
+	process_mask_kernel<<<gridSize, blockSize, 0, stream>>>(single_out_buffer_device, proto, out_mask_buffer_device, 
+                        dst_width, dst_height, out_w, proto_size);
+	CUDA_CHECK(cudaMemcpyAsync(dst, out_mask_buffer_device, sizeof(uint8_t) * (dst_width * dst_height), cudaMemcpyDeviceToHost, stream));
+	CUDA_CHECK(cudaStreamSynchronize(stream));
+}

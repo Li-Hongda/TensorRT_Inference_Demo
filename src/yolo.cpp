@@ -1,47 +1,39 @@
 #include "yolo.h"
 
 
-YOLO::YOLO(const YAML::Node &config) : Detection(config) {}
-
-#if 0 //CPU postprocess deprecated
-std::vector<Detections> YOLO::PostProcess(const std::vector<cv::Mat> &imgBatch, float* output) {
-    std::vector<Detections> vec_result;
+YOLO::YOLO(const YAML::Node &config) : Detection(config) {
+    nms_thr = config["nms_thr"].as<float>();
+    strides = config["strides"].as<std::vector<int>>();
     int index = 0;
-    auto predSize = bufferSize[1] / sizeof(float);
-    for (const cv::Mat &img : imgBatch) {
-        Detections result;
-        float* pred_per_img = output + index * predSize;
-        for (int position = 0; position < num_rows; position++) {
-            float* pred_per_obj = pred_per_img + position * (num_classes + 5);
-            if (pred_per_obj[4] < conf_thr) continue;
-            Box box;
-            auto max_pos = std::max_element(pred_per_obj + 5, pred_per_obj + num_classes + 5);
-            box.score = pred_per_obj[4] * pred_per_obj[max_pos - pred_per_obj];
-            box.label = max_pos - pred_per_obj - 5;
-
-            // 将得到的box坐标映射回原图。
-            auto l = pred_per_obj[0] - pred_per_obj[2] / 2;
-            auto t = pred_per_obj[1] - pred_per_obj[3] / 2;
-            auto r = pred_per_obj[0] + pred_per_obj[2] / 2;
-            auto b = pred_per_obj[1] + pred_per_obj[3] / 2;
-            auto new_l = dst2src.v0 * l + dst2src.v1 * t + dst2src.v2;
-            auto new_r = dst2src.v0 * r + dst2src.v1 * b + dst2src.v2;
-            auto new_t = dst2src.v3 * l + dst2src.v4 * t + dst2src.v5;
-            auto new_b = dst2src.v3 * r + dst2src.v4 * b + dst2src.v5;
-            box.x = new_l;
-            box.y = new_t;
-            box.w = new_r - new_l;
-            box.h = new_b - new_t;
-        
-            result.dets.emplace_back(box);
-        }
-        NMS(result.dets);
-        vec_result.emplace_back(result);
-        index++;
-    } 
-    return vec_result;
+    for (const int &stride : strides)
+    {
+        num_bboxes += int(imageHeight / stride) * int(imageWidth / stride) * 3;
+        index+=1;
+    }         
 }
-#endif
+
+std::vector<Detections> YOLO::InferenceImages(std::vector<cv::Mat> &imgBatch) noexcept{
+    auto t_start_pre = std::chrono::high_resolution_clock::now();
+    PreProcess(imgBatch);
+    auto t_end_pre = std::chrono::high_resolution_clock::now();
+    float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
+
+    //gpu inference
+    auto t_start = std::chrono::high_resolution_clock::now();
+    auto gpu_buf = (void **)gpu_buffers;
+    this->context->enqueueV2(gpu_buf, stream, nullptr);
+    auto t_end = std::chrono::high_resolution_clock::now();
+    float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();
+    
+    auto t_start_post = std::chrono::high_resolution_clock::now();
+    auto boxes = PostProcess(imgBatch, gpu_buffers[1]);
+    auto t_end_post = std::chrono::high_resolution_clock::now();
+    float total_post = std::chrono::duration<float, std::milli>(t_end_post - t_start_post).count();
+    std::cout << "preprocess time: "<< total_pre << "ms." <<
+    "detection inference time: " << total_inf << " ms." 
+    "postprocess time: " << total_post << " ms." << std::endl; 
+    return boxes;
+}
 
 std::vector<Detections> YOLO::PostProcess(const std::vector<cv::Mat> &imgBatch, float* output) {
     std::vector<Detections> vec_result;
@@ -51,7 +43,7 @@ std::vector<Detections> YOLO::PostProcess(const std::vector<cv::Mat> &imgBatch, 
         Detections result;
         float* pred_per_img = output + index * predSize;
         cuda_postprocess_init(7, imageWidth, imageHeight);
-        postprocess_box(pred_per_img, num_rows, num_classes, 7, conf_thr, nms_thr, stream, cpu_buffers[1]);
+        postprocess_box(pred_per_img, num_bboxes, num_classes, 7, conf_thr, nms_thr, stream, cpu_buffers[1]);
         int num_boxes = std::min((int)cpu_buffers[1][0], 1000);
         for (int i = 0; i < num_boxes; i++) {
             Box box;
@@ -80,74 +72,39 @@ std::vector<Detections> YOLO::PostProcess(const std::vector<cv::Mat> &imgBatch, 
 }
 
 
-YOLO_seg::YOLO_seg(const YAML::Node &config) : InstanceSegmentation(config) {}
-
-#if 1
-std::vector<Segmentations> YOLO_seg::PostProcess(const std::vector<cv::Mat> &imgBatch, float* output1, float* output2) {
-    std::vector<Segmentations> vec_result;
+YOLO_seg::YOLO_seg(const YAML::Node &config) : InstanceSegmentation(config) {
+    nms_thr = config["nms_thr"].as<float>();
+    strides = config["strides"].as<std::vector<int>>();
     int index = 0;
-    auto protoSize = bufferSize[1] / sizeof(float);
-    auto predSize = bufferSize[2] / sizeof(float);
-    cuda_postprocess_init(39, imageWidth, imageHeight);
-    for (const cv::Mat &img : imgBatch) {
-        Segmentations result;
-        float* proto = output1 + index * protoSize;
-        float* pred_per_img = output2 + index * predSize;
-        postprocess_box_mask(pred_per_img, num_rows, num_classes, 39, conf_thr, nms_thr, stream, cpu_buffers[1]);
-        int num_boxes = std::min((int)cpu_buffers[1][0], 1000);
-        for (int i = 0; i < num_boxes; i++) {
-            Instance ins;
-            float* ptr = cpu_buffers[1] + 1 + 39 * i;
-            memcpy(&ins.pred_mask, ptr + 7, 32 * 4);
-            if (!ptr[6]) continue;
-            ins.x = ptr[0];
-            ins.y = ptr[1];
-            ins.w = ptr[2];
-            ins.h = ptr[3];
-            ins.score = ptr[4];
-            ins.label = ptr[5];
-            result.segs.emplace_back(ins);
-        } 
-        for (int i = 0; i < result.segs.size(); i++){
-            cv::Mat mask = cv::Mat::zeros(imageHeight / 4, imageWidth / 4, CV_32FC1);
-            float box[4] = {result.segs[i].x, result.segs[i].y, result.segs[i].w, result.segs[i].h};
-            auto scale_box = get_downscale_rect(box, 4);
-            for (int x = scale_box.x; x < scale_box.x + scale_box.width; x++) {
-                for (int y = scale_box.y; y < scale_box.y + scale_box.height; y++) {
-                    float e = 0.0f;
-                    for (int j = 0; j < 32; j++) {
-                        int index = j * protoSize / 32 + y * mask.cols + x;
-                        e += result.segs[i].pred_mask[j] * proto[index];
-                    }
-                    e = 1.0f / (1.0f + expf(-e));
-                    if (e > 0.5) mask.at<float>(y, x) = 1;
-                }
-            }
-            cv::resize(mask, mask, cv::Size(imageWidth, imageHeight));
-            auto l = result.segs[i].x;
-            auto t = result.segs[i].y;
-            auto r = result.segs[i].x + result.segs[i].w;
-            auto b = result.segs[i].y + result.segs[i].h;
-            auto new_l = dst2src.v0 * l + dst2src.v1 * t + dst2src.v2;
-            auto new_r = dst2src.v0 * r + dst2src.v1 * b + dst2src.v2;
-            auto new_t = dst2src.v3 * l + dst2src.v4 * t + dst2src.v5;
-            auto new_b = dst2src.v3 * r + dst2src.v4 * b + dst2src.v5;
-            result.segs[i].x = new_l;
-            result.segs[i].y = new_t;
-            result.segs[i].w = new_r - new_l;
-            result.segs[i].h = new_b - new_t;  
-            result.segs[i].mask = mask;
-        }        
-        vec_result.emplace_back(result);
-        index++;
-    }
-    return vec_result;
+    for (const int &stride : strides)
+    {
+        num_bboxes += int(imageHeight / stride) * int(imageWidth / stride) * 3;
+        index+=1;
+    }     
 }
-#endif
 
+std::vector<Segmentations> YOLO_seg::InferenceImages(std::vector<cv::Mat> &imgBatch) noexcept{
+    auto t_start_pre = std::chrono::high_resolution_clock::now();
+    PreProcess(imgBatch);    
+    auto t_end_pre = std::chrono::high_resolution_clock::now();
+    float total_pre = std::chrono::duration<float, std::milli>(t_end_pre - t_start_pre).count();
 
+    auto t_start = std::chrono::high_resolution_clock::now();
+    auto gpu_buf = (void **)gpu_buffers;
+    this->context->enqueueV2(gpu_buf, stream, nullptr); 
+    auto t_end = std::chrono::high_resolution_clock::now();
+    float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();
+    // CUDA_CHECK(cudaMemcpyAsync(cpu_buffers[1], gpu_buffers[1], bufferSize[1], cudaMemcpyDeviceToHost, stream));    
+    auto t_start_post = std::chrono::high_resolution_clock::now();
+    auto boxes = PostProcess(imgBatch, gpu_buffers[1], gpu_buffers[2]);
+    auto t_end_post = std::chrono::high_resolution_clock::now();
+    float total_post = std::chrono::duration<float, std::milli>(t_end_post - t_start_post).count();
+    std::cout << "preprocess time: "<< total_pre << "ms." <<
+    "detection inference time: " << total_inf << " ms." 
+    "postprocess time: " << total_post << " ms." << std::endl;
+    return boxes;
+}
 
-#if 0 //GPU process_mask,  to be finished.
 std::vector<Segmentations> YOLO_seg::PostProcess(const std::vector<cv::Mat> &imgBatch, float* output1, float* output2) {
     std::vector<Segmentations> vec_result;
     int index = 0;
@@ -158,10 +115,7 @@ std::vector<Segmentations> YOLO_seg::PostProcess(const std::vector<cv::Mat> &img
         Segmentations result;
         float* proto = output1 + index * protoSize;
         float* pred_per_img = output2 + index * predSize;
-        
-        postprocess_box_mask(pred_per_img, num_rows, num_classes, 39, conf_thr, nms_thr, stream, cpu_buffers[1]);
-
-        // postprocess_box_mask(pred_per_img, proto, num_rows, num_classes, 39, 160, 160, conf_thr, nms_thr, stream, cpu_buffers[1], cpu_mask_buffer);
+        postprocess_box_mask(pred_per_img, num_bboxes, num_classes, 39, conf_thr, nms_thr, stream, cpu_buffers[1]);
         int num_boxes = std::min((int)cpu_buffers[1][0], 1000);
         for (int i = 0; i < num_boxes; i++) {
             Instance ins;
@@ -181,9 +135,9 @@ std::vector<Segmentations> YOLO_seg::PostProcess(const std::vector<cv::Mat> &img
             ins.h = new_b - new_t;                                            
             ins.score = ptr[4];
             ins.label = ptr[5];
-            process_mask(ptr, proto, cpu_mask_buffer, 39, 160, 160, 32, 25600, stream);
-            cv::Mat mask(imageWidth / 4, imageHeight / 4, CV_32F);
-            memcpy(mask.ptr(), cpu_mask_buffer, imageWidth * imageHeight * sizeof(float) / 16);
+            process_mask(ptr, proto, cpu_mask_buffer, 39, imageWidth / 4, imageHeight / 4, 32, imageWidth * imageHeight / 16, stream);
+            cv::Mat mask(imageWidth / 4, imageHeight / 4, CV_8UC1);
+            memcpy(mask.ptr(), cpu_mask_buffer, imageWidth * imageHeight * sizeof(uint8_t) / 16);
             cv::resize(mask, mask, cv::Size(imageWidth, imageHeight));
             ins.mask = mask;
             result.segs.emplace_back(ins);
@@ -193,18 +147,4 @@ std::vector<Segmentations> YOLO_seg::PostProcess(const std::vector<cv::Mat> &img
     }
     // cuda_postprocess_destroy();
     return vec_result;
-}
-#endif
-
-cv::Rect YOLO_seg::get_downscale_rect(float bbox[4], float scale) {
-    float left = bbox[0] / scale;
-    float top = bbox[1] / scale;
-    float width  = bbox[2] / scale;
-    float height = bbox[3] / scale;
-    if (left < 0) left = 0.0;
-    if (top < 0) top = 0.0;
-    if (left + width > imageWidth / scale) width = imageWidth / scale - left;
-    if (top + height > imageHeight / scale) height = imageHeight / scale -top;
-
-    return cv::Rect(left, top, width, height);
 }

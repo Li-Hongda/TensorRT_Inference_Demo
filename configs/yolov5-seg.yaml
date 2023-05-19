@@ -4,7 +4,6 @@ yolov5-seg:
     type:          "coco80"
     mode:          "fp32"
     batchSize:     1
-    inputChannel:  3
     imageWidth:    640
     imageHeight:   640
     conf_thr:      0.25

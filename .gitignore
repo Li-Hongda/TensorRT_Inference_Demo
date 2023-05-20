@@ -34,7 +34,6 @@
 bin
 .vscode
 weights
-yaml-cpp-yaml-cpp-0.6.3
+yaml-cpp
 build
 demo
-results

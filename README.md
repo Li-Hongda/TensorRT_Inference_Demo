@@ -37,14 +37,14 @@ This repo use TensorRT-8.x to deploy well-trained models, both image preprocessi
 - [x] [YOLOv8](https://github.com/ultralytics/ultralytics)<br>
 - [x] [YOLOv8-seg](https://github.com/ultralytics/ultralytics)<br>
 - [x] [RT-DETR](https://github.com/PaddlePaddle/PaddleDetection/tree/develop/configs/rtdetr)<br>
-- [] [YOLOv6](https://github.com/meituan/YOLOv6) (to be continued)<br>
-- [] [YOLO-NAS](https://github.com/Deci-AI/super-gradients) (to be continued)<br>
+- [ ] [YOLOv6](https://github.com/meituan/YOLOv6) (to be continued)<br>
+- [ ] [YOLO-NAS](https://github.com/Deci-AI/super-gradients) (to be continued)<br>
 </details>
 
 All speed tests were performed on RTX 3090 with COCO Val set.The time calculated here is the sum of the time of image loading, preprocess, inference and postprocess, so it's going to be slower than what's reported in the paper.
 <div align='center'>
 
-| Models | BatchSize | Mode | Input Shape(HxW) |  FPS  |
+| Models | BatchSize | Mode | Resolution |  FPS  |
 |-|-|:-:|:-:|:-:|
 | YOLOv5-s v7.0  | 1 | FP32 | 640x640 | 468 |
 | YOLOv5-s v7.0  | 32 | FP32 | 640x640 | - |
@@ -58,18 +58,36 @@ All speed tests were performed on RTX 3090 with COCO Val set.The time calculated
 
 
 ## 4.Usage
+
+
 1. Clone the repo.
 ```
 git clone https://github.com/Li-Hongda/TensorRT_Inference_Demo.git
+```
+2. Install the dependencies.
+### TensorRT
+Following [NVIDIA offical docs](https://docs.nvidia.com/deeplearning/tensorrt/install-guide/index.html#installing) to install TensorRT.
+
+### yaml-cpp
+```
+git clone https://github.com/jbeder/yaml-cpp
+mkdir build && cd build
+cmake ..
+make -j20
+cmake -DYAML_BUILD_SHARED_LIBS=on ..
+make -j20
+cd ..
+```
+
+
+3. Change the path [here](https://github.com/Li-Hongda/TensorRT_Inference_Demo/blob/main/object_detection/CMakeLists.txt#L19) to your TensorRT path, and [here](https://github.com/Li-Hongda/TensorRT_Inference_Demo/blob/main/object_detection/CMakeLists.txt#L11) to your CUDA path. Then,
+```
 cd TensorRT_Inference_Demo/object_detection
-```
-2. Change the path [here](https://github.com/Li-Hongda/TensorRT_Inference_Demo/blob/main/object_detection/CMakeLists.txt#L19) to your TensorRT path, and [here](https://github.com/Li-Hongda/TensorRT_Inference_Demo/blob/main/object_detection/CMakeLists.txt#L11) to your CUDA path. Then,
-```
 mkdir build && cd build
 cmake ..
 make -j$(nproc)
 ```
-3. The executable file will be generated in `bin` in the repo directory if compile successfully.Then enjoy yourself with command like this:
+4. The executable file will be generated in `bin` in the repo directory if compile successfully.Then enjoy yourself with command like this:
 ```
 cd bin
 ./object_detection yolov5 /path/to/input/dir 

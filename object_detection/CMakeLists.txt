@@ -47,8 +47,8 @@ list(APPEND ALL_LIBS ${OpenCV_LIBRARIES})
 list(APPEND ALL_INCLUDE ${OpenCV_INCLUDE_DIRS})
 
 # YAML
-set(YAML_LIBRARY ../yaml-cpp-yaml-cpp-0.6.3/build)
-set(YAML_INCLUDE ../yaml-cpp-yaml-cpp-0.6.3/include)
+set(YAML_LIBRARY ../yaml-cpp/build)
+set(YAML_INCLUDE ../yaml-cpp/include)
 link_directories(${YAML_LIBRARY})
 list(APPEND ALL_INCLUDE ${YAML_INCLUDE})
 

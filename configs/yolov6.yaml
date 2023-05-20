@@ -1,0 +1,13 @@
+yolov7:
+    onnx_file:     "../weights/yolov6/yolov6.onnx"
+    engine_file:   "../weights/yolov6/yolov6.trt"
+    type:          "coco"
+    mode:          "fp32"
+    batchSize:     1
+    imageWidth:    640
+    imageHeight:   640
+    conf_thr:      0.25
+    nms_thr:       0.45
+    strides:       [8, 16, 32]
+    imgMean:       [ 0, 0, 0 ]
+    imgStd:        [ 1, 1, 1 ]

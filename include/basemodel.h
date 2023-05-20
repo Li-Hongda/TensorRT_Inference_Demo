@@ -4,8 +4,7 @@
 #include "common.h"
 #include "cuda_function.h"
 
-class Model
-{
+class Model {
 public:
     explicit Model(const YAML::Node &config);
     ~Model();
@@ -27,7 +26,6 @@ protected:
     std::string names[10];
     float** cpu_buffers = new float* [10];
     float* gpu_buffers[10]{};
-    // float* cpu_mask_buffer = nullptr;
     std::vector<int64_t> bufferSize;    
     std::shared_ptr<nvinfer1::ICudaEngine> engine;
     std::unique_ptr<nvinfer1::IExecutionContext> context;

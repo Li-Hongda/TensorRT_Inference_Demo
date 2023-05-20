@@ -1,7 +1,7 @@
 rtdetr:
     onnx_file:     "../weights/rtdetr/rtdetr_hgnetv2_l_6x_coco.onnx"
     engine_file:   "../weights/rtdetr/rtdetr_hgnetl.trt"
-    type:          "coco80"
+    type:          "coco"
     mode:          "fp32"
     batchSize:     1
     imageWidth:    640

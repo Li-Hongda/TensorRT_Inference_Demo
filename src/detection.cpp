@@ -4,13 +4,13 @@ Detection::Detection(const YAML::Node &config) : Model(config) {
     conf_thr = config["conf_thr"].as<float>();
     type = config["type"].as<std::string>();
 
-    if (type == "coco80"){
-        class_colors = Color::coco80;
-        class_labels = Category::coco80;
+    if (type == "coco"){
+        class_colors = Color::coco;
+        class_labels = Category::coco;
     }
     else {
-        class_colors = Color::coco91;
-        class_labels = Category::coco91;
+        class_colors = Color::voc;
+        class_labels = Category::voc;
     }
     num_classes = class_labels.size();
 
@@ -106,7 +106,7 @@ void Detection::Inference(const std::string &input_path, const std::string &save
         }
     }
     delete [] cpu_buffers;
-    std::cout << "Average processing time is " << total_time / image_list.size() << "ms" << std::endl;
+    std::cout << "Average processing time is " << total_time / image_list.size() << "ms " << std::endl;
     std::cout << "Average FPS is " << 1000 * image_list.size() / total_time << std::endl;
 }
 
@@ -118,7 +118,7 @@ void Detection::Visualize(const std::vector<Detections> &detections,
                           std::vector<std::string> image_names) {
     int font_face = cv::FONT_HERSHEY_SIMPLEX;
     double font_scale = 0.5f;
-    float thickness = 0.5;                                
+    float thickness = 0.5;    
     for (int i = 0; i < (int)imgBatch.size(); i++) {
         auto img = imgBatch[i];
         if (!img.data)

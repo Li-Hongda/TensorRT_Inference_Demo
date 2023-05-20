@@ -5,13 +5,13 @@ InstanceSegmentation::InstanceSegmentation(const YAML::Node &config) : Model(con
     type = config["type"].as<std::string>();
     cpu_mask_buffer = (uint8_t*) malloc(imageHeight * imageWidth * sizeof(uint8_t) / 16);  
     
-    if (type == "coco80"){
-        class_colors = Color::coco80;
-        class_labels = Category::coco80;
+    if (type == "coco"){
+        class_colors = Color::coco;
+        class_labels = Category::coco;
     }
     else {
-        class_colors = Color::coco91;
-        class_labels = Category::coco91;
+        class_colors = Color::voc;
+        class_labels = Category::voc;
     }
     num_classes = class_labels.size();
 
@@ -105,8 +105,8 @@ void InstanceSegmentation::Inference(const std::string &input_path, const std::s
         }
         
     }
-    // sample::gLogError << "Average processing time is " << total_time / image_list.size() << "ms" << std::endl;
-    std::cout << "Average processing time is " << total_time / image_list.size() << "ms" << std::endl;
+    // sample::gLogError << "Average processing time is " << total_time / image_list.size() << "ms " << std::endl;
+    std::cout << "Average processing time is " << total_time / image_list.size() << "ms " << std::endl;
     std::cout << "Average FPS is " << 1000 * image_list.size() / total_time << std::endl;
 }
 
@@ -118,21 +118,31 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
     float thickness = 0.5;    
     for (int i = 0; i < (int)imgBatch.size(); i++) {
         auto img = imgBatch[i];
-        if (!img.data)
-            continue;
+        if (!img.data) continue;
         auto instances = segmentations[i].segs;
         for(const auto &ins : instances) {
-            auto mask = ins.mask;
+            cv::Mat mask = ins.mask;
             cv::Mat img_mask = scale_mask(mask, img);
+            cv::Mat reg_img = cv::Mat::zeros(img.rows, img.cols, CV_8UC1);
+            for (int row = ins.y; row < ins.y + ins.h; row++) {	
+                if (row < 0 || row >= img.rows) continue;
+                cv::Vec<uint8_t, 1> *data_Ptr = reg_img.ptr<cv::Vec<uint8_t, 1>> (row);
+                for (int col = ins.x; col < ins.x + ins.w; col++)
+                {
+                    if (col < 0 || col >= img.cols) continue;
+                    data_Ptr[col][0] = 1;
+                }
+            } 
+            cv::bitwise_and(img_mask, reg_img, img_mask);
+
             std::vector<cv::Mat> contours;
             cv::Mat hierarchy;
             cv::Mat colored_img = img.clone();
-            // img_mask.convertTo(img_mask, CV_8U);
             cv::findContours(img_mask, contours, hierarchy, 
                              cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
             cv::drawContours(colored_img, contours, -1, class_colors[ins.label], -1, cv::LINE_8,
-                             hierarchy, 100);                             
-            img = 0.3 * colored_img + 0.7 * img;
+                             hierarchy, 100);                
+            img = 0.4 * colored_img + 0.6 * img;
 
             auto score = cv::format("%.3f", ins.score);
             std::string text = class_labels[ins.label] + "|" + score;

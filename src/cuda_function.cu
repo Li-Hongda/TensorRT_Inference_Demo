@@ -3,8 +3,6 @@
 
 static uint8_t* img_buffer_host = nullptr;
 static uint8_t* img_buffer_device = nullptr;
-// static float* proto_buffer_host = nullptr;
-// static float* proto_buffer_device = nullptr;
 static float* out_buffer_host = nullptr;
 static float* out_buffer_device = nullptr;
 static uint8_t* out_mask_buffer_device = nullptr;
@@ -18,11 +16,14 @@ void cuda_postprocess_init(int num_out, int width, int height) {
 
 }
 
-
-
 void cuda_preprocess_init(int max_image_size) {
 	CUDA_CHECK(cudaMallocHost((void**)&img_buffer_host, max_image_size * 3));
 	CUDA_CHECK(cudaMalloc((void**)&img_buffer_device, max_image_size * 3));
+}
+
+void process_mask_init(int num_out, int width, int height) {
+	CUDA_CHECK(cudaMalloc((void**)&out_mask_buffer_device, width * height * sizeof(uint8_t)));
+    CUDA_CHECK(cudaMalloc((void**)&single_out_buffer_device, num_out * sizeof(float)));
 }
 
 void cuda_preprocess_destroy() {
@@ -161,14 +162,14 @@ static __global__ void fast_nms_kernel(float* bboxes, float threshold, int num_o
 }
 
 static __global__ void decode_box_kernel(float* predict, int num_bboxes, int num_out,
-										 int num_classes, float confidence_threshold,
+										 int num_classes, float conf_thr, AffineMatrix mat, 
     									 float* parray) {
 
     int position = blockDim.x * blockIdx.x + threadIdx.x;
     if (position >= num_bboxes) return;
 
     float* pred_per_obj = predict + position * (num_classes + 5);
-    if (pred_per_obj[4] < confidence_threshold) return;
+    if (pred_per_obj[4] < conf_thr) return;
 	
     float* cls_score = pred_per_obj + 5;
 
@@ -182,28 +183,34 @@ static __global__ void decode_box_kernel(float* predict, int num_bboxes, int num
         }
     }
     score *= pred_per_obj[4];
-    if (score < confidence_threshold) return;
+    if (score < conf_thr) return;
     float cx = pred_per_obj[0];
     float cy = pred_per_obj[1];
     float width = pred_per_obj[2];
-    float height = pred_per_obj[3];	
-    float left = cx - width * 0.5f;
-    float top = cy - height * 0.5f;
+    float height = pred_per_obj[3];
+    float l = cx - width * 0.5f;
+    float t = cy - height * 0.5f;
+    float r = l + width;
+    float b = t + height;
+    auto left = mat.v0 * l + mat.v1 * t + mat.v2;
+    auto right = mat.v0 * r + mat.v1 * b + mat.v2;
+    auto top = mat.v3 * l + mat.v4 * t + mat.v5;
+    auto bottom = mat.v3 * r + mat.v4 * b + mat.v5;    
 
     int index = atomicAdd(parray, 1);
     
     float* pout_item = parray + 1 + index * num_out;
     pout_item[0] = left;
     pout_item[1] = top;
-    pout_item[2] = width;
-    pout_item[3] = height;
+    pout_item[2] = right - left;
+    pout_item[3] = bottom - top;
     pout_item[4] = score;
     pout_item[5] = label;
 	pout_item[6] = 1;		
 }
 
 static __global__ void yolov8_decode_box_kernel(float* predict, int num_bboxes, int num_out,
-										 int num_classes, float confidence_threshold,
+										 int num_classes, float conf_thr, AffineMatrix mat, 
     									 float* parray) {
 
     int position = blockDim.x * blockIdx.x + threadIdx.x;
@@ -222,13 +229,19 @@ static __global__ void yolov8_decode_box_kernel(float* predict, int num_bboxes, 
             label = i;
         }
     }
-    if (score < confidence_threshold) return;
+    if (score < conf_thr) return;
     float cx = pred_per_obj[0];
     float cy = pred_per_obj[1];
     float width = pred_per_obj[2];
     float height = pred_per_obj[3];	
-    float left = cx - width * 0.5f;
-    float top = cy - height * 0.5f;
+    float l = cx - width * 0.5f;
+    float t = cy - height * 0.5f;
+    float r = l + width;
+    float b = t + height;
+    auto left = mat.v0 * l + mat.v1 * t + mat.v2;
+    auto right = mat.v0 * r + mat.v1 * b + mat.v2;
+    auto top = mat.v3 * l + mat.v4 * t + mat.v5;
+    auto bottom = mat.v3 * r + mat.v4 * b + mat.v5;  
 
     int index = atomicAdd(parray, 1);
     
@@ -244,15 +257,13 @@ static __global__ void yolov8_decode_box_kernel(float* predict, int num_bboxes, 
 
 
 static __global__ void rtdetr_decode_box_kernel(float* predict_box, float* predict_cls, int num_bboxes, 
-                                                int num_out, int num_classes, float confidence_threshold,
-    									        int imgWidth, int imgHeight, float* parray) {
+                                                int num_out, int num_classes, float conf_thr,
+    									        int imgWidth, int imgHeight, AffineMatrix mat, float* parray) {
     int position = blockDim.x * blockIdx.x + threadIdx.x;
     if (position >= num_bboxes) return;
 
     float* box_pre_obj = predict_box + position * 4;
-	
     float* cls_score = predict_cls + position * 80;
-
     float score = *cls_score++;
 
     int label = 0;
@@ -263,13 +274,19 @@ static __global__ void rtdetr_decode_box_kernel(float* predict_box, float* predi
         }
     }
     score = sigmoid(score);
-    if (score < confidence_threshold) return;
+    if (score < conf_thr) return;
     float cx = box_pre_obj[0] * imgWidth;
     float cy = box_pre_obj[1] * imgHeight;
     float width = box_pre_obj[2] * imgWidth;
     float height = box_pre_obj[3] * imgHeight;	
-    float left = cx - width * 0.5f;
-    float top = cy - height * 0.5f;
+    float l = cx - width * 0.5f;
+    float t = cy - height * 0.5f;
+    float r = l + width;
+    float b = t + height;
+    auto left = mat.v0 * l + mat.v1 * t + mat.v2;
+    auto right = mat.v0 * r + mat.v1 * b + mat.v2;
+    auto top = mat.v3 * l + mat.v4 * t + mat.v5;
+    auto bottom = mat.v3 * r + mat.v4 * b + mat.v5; 
 
     int index = atomicAdd(parray, 1);
     
@@ -284,13 +301,13 @@ static __global__ void rtdetr_decode_box_kernel(float* predict_box, float* predi
 
 
 static __global__ void decode_box_mask_kernel(float* predict, int num_bboxes, int num_out,
-										 int num_classes, float confidence_threshold,
+										 int num_classes, float conf_thr, AffineMatrix mat, 
     									 float* parray) {
 
     int position = blockDim.x * blockIdx.x + threadIdx.x;    
 	if (position >= num_bboxes) return;
     float* pred_per_obj = predict + position * (num_classes + 5 + 32);
-    if (pred_per_obj[4] < confidence_threshold) return;
+    if (pred_per_obj[4] < conf_thr) return;
 	
     float* cls_score = pred_per_obj + 5;
 
@@ -304,13 +321,19 @@ static __global__ void decode_box_mask_kernel(float* predict, int num_bboxes, in
         }
     }
     score *= pred_per_obj[4];
-    if (score < confidence_threshold) return;
+    if (score < conf_thr) return;
     float cx = pred_per_obj[0];
     float cy = pred_per_obj[1];
     float width = pred_per_obj[2];
     float height = pred_per_obj[3];	
-    float left = cx - width * 0.5f;
-    float top = cy - height * 0.5f;
+    float l = cx - width * 0.5f;
+    float t = cy - height * 0.5f;
+    float r = l + width;
+    float b = t + height;
+    auto left = mat.v0 * l + mat.v1 * t + mat.v2;
+    auto right = mat.v0 * r + mat.v1 * b + mat.v2;
+    auto top = mat.v3 * l + mat.v4 * t + mat.v5;
+    auto bottom = mat.v3 * r + mat.v4 * b + mat.v5;  
 
     int index = atomicAdd(parray, 1);
     
@@ -329,7 +352,7 @@ static __global__ void decode_box_mask_kernel(float* predict, int num_bboxes, in
 
 
 static __global__ void yolov8_decode_box_mask_kernel(float* predict, int num_bboxes, int num_out,
-										 int num_classes, float confidence_threshold,
+										 int num_classes, float conf_thr, AffineMatrix mat, 
     									 float* parray) {
 
     int position = blockDim.x * blockIdx.x + threadIdx.x;    
@@ -347,13 +370,19 @@ static __global__ void yolov8_decode_box_mask_kernel(float* predict, int num_bbo
             label = i;
         }
     }
-    if (score < confidence_threshold) return;
+    if (score < conf_thr) return;
     float cx = pred_per_obj[0];
     float cy = pred_per_obj[1];
     float width = pred_per_obj[2];
     float height = pred_per_obj[3];	
-    float left = cx - width * 0.5f;
-    float top = cy - height * 0.5f;
+    float l = cx - width * 0.5f;
+    float t = cy - height * 0.5f;
+    float r = l + width;
+    float b = t + height;
+    auto left = mat.v0 * l + mat.v1 * t + mat.v2;
+    auto right = mat.v0 * r + mat.v1 * b + mat.v2;
+    auto top = mat.v3 * l + mat.v4 * t + mat.v5;
+    auto bottom = mat.v3 * r + mat.v4 * b + mat.v5;  
 
     int index = atomicAdd(parray, 1);
     
@@ -372,26 +401,30 @@ static __global__ void yolov8_decode_box_mask_kernel(float* predict, int num_bbo
 
 static __global__ void process_mask_kernel(float* out, float* proto, uint8_t* dst , 
 										   int dst_width, int dst_height, int out_w, int proto_size) {
-    int dx = blockDim.x * blockIdx.x + threadIdx.x;
-    int dy = blockDim.y * blockIdx.y + threadIdx.y;
+	int position = blockDim.x * blockIdx.x + threadIdx.x;
+	if (position >= proto_size) return;
+
+	int dx = position % dst_width;
+	int dy = position / dst_width;
     int left = out[0] / 4;
     int top = out[1] / 4;
+    int right = left + out[2] / 4;
+    int bottom = top + out[3] / 4;
 
-    int cx = left + dx;
-    int cy = top + dy;
-    if (cx >= dst_width || cy >= dst_height) return;
-    if (cx < 0 || cx >= dst_width || cy < 0 || cy >= dst_height) {
-        dst[cy * dst_width + cx] = 0;
-        return;
-    }
+    if (dx >= dst_width || dy >= dst_height) return;
     float c = 0;
-	for(int j = 0; j < out_w; ++j){
-		c += out[j + 7] * proto[(j * dst_height + cy) * dst_width + cx];
-	}
+    if (left < dx < right && top < dy < bottom) {
+        for(int j = 0; j < out_w; ++j) {
+            c += out[j + 7] * proto[(j * dst_height + dy) * dst_width + dx];
+        }        
+    } else {
+        dst[dy * dst_width + dx] = 0;
+        return; 
+    }
 	if (sigmoid(c) > 0.5) {
-        dst[cy * dst_width + cx] = 1;
+        dst[dy * dst_width + dx] = 1;
 	} else {
-        dst[cy * dst_width + cx] = 0;
+        dst[dy * dst_width + dx] = 0;
 	}
 }
 
@@ -411,11 +444,11 @@ void preprocess(uint8_t* src, AffineMatrix d2s, int src_width,
 }
 
 void postprocess_box(float* predict, int num_bboxes, int num_classes, int num_out,
-	float conf_thr, float nms_thr, cudaStream_t stream, float* dst) {
+	float conf_thr, float nms_thr, AffineMatrix mat, cudaStream_t stream, float* dst) {
     auto block = num_bboxes > 512 ? 512 : num_bboxes;
     auto grid = (num_bboxes + block - 1) / block;
     decode_box_kernel<<<grid, block, 0, stream>>>(predict, num_bboxes, num_out, num_classes, 
-												  conf_thr, out_buffer_device);
+												  conf_thr, mat, out_buffer_device);
     block = 512;
     grid = (1000 + block - 1) / block;
     fast_nms_kernel<<<grid, block, 0, stream>>>(out_buffer_device, nms_thr, num_out);
@@ -423,12 +456,13 @@ void postprocess_box(float* predict, int num_bboxes, int num_classes, int num_ou
 	CUDA_CHECK(cudaStreamSynchronize(stream));
 }
 
+
 void yolov8_postprocess_box(float* predict, int num_bboxes, int num_classes, int num_out,
-	float conf_thr, float nms_thr, cudaStream_t stream, float* dst) {
+	float conf_thr, float nms_thr, AffineMatrix mat, cudaStream_t stream, float* dst) {
     auto block = num_bboxes > 512 ? 512 : num_bboxes;
     auto grid = (num_bboxes + block - 1) / block;
     yolov8_decode_box_kernel<<<grid, block, 0, stream>>>(predict, num_bboxes, num_out, num_classes, 
-												  conf_thr, out_buffer_device);
+												  conf_thr, mat, out_buffer_device);
     block = 512;
     grid = (1000 + block - 1) / block;
     fast_nms_kernel<<<grid, block, 0, stream>>>(out_buffer_device, nms_thr, num_out);
@@ -437,21 +471,21 @@ void yolov8_postprocess_box(float* predict, int num_bboxes, int num_classes, int
 }
 
 void rtdetr_postprocess_box(float* predict_box, float* predict_cls, int num_bboxes, int num_classes, int num_out,
-	                        float conf_thr, int imageWidth, int imageHeight, cudaStream_t stream, float* dst) {
+	                        float conf_thr, int imageWidth, int imageHeight, AffineMatrix mat, cudaStream_t stream, float* dst) {
     auto block = num_bboxes > 512 ? 512 : num_bboxes;
     auto grid = (num_bboxes + block - 1) / block;
     rtdetr_decode_box_kernel<<<grid, block, 0, stream>>>(predict_box, predict_cls, num_bboxes, num_out, num_classes, 
-												  conf_thr,imageWidth, imageHeight, out_buffer_device);
+												  conf_thr,imageWidth, imageHeight, mat, out_buffer_device);
 	CUDA_CHECK(cudaMemcpyAsync(dst, out_buffer_device, sizeof(int) + 300 * num_out * sizeof(float), cudaMemcpyDeviceToHost, stream));
 	CUDA_CHECK(cudaStreamSynchronize(stream));
 }
 
 void postprocess_box_mask(float* predict, int num_bboxes, int num_classes, 
-	int num_out, float conf_thr, float nms_thr, cudaStream_t stream, float* dst) {
+	int num_out, float conf_thr, float nms_thr, AffineMatrix mat, cudaStream_t stream, float* dst) {
     auto block = num_bboxes > 512 ? 512 : num_bboxes;
     auto grid = (num_bboxes + block - 1) / block;
     decode_box_mask_kernel<<<grid, block, 0, stream>>>(predict, num_bboxes, num_out, num_classes, 
-												  conf_thr, out_buffer_device);
+												  conf_thr, mat, out_buffer_device);
     block = 512;
     grid = (1000 + block - 1) / block;
     fast_nms_kernel<<<grid, block, 0, stream>>>(out_buffer_device, nms_thr, num_out);
@@ -460,11 +494,11 @@ void postprocess_box_mask(float* predict, int num_bboxes, int num_classes,
 }
 
 void yolov8_postprocess_box_mask(float* predict, int num_bboxes, int num_classes, 
-	int num_out, float conf_thr, float nms_thr, cudaStream_t stream, float* dst) {
+	int num_out, float conf_thr, float nms_thr, AffineMatrix mat, cudaStream_t stream, float* dst) {
     auto block = num_bboxes > 512 ? 512 : num_bboxes;
     auto grid = (num_bboxes + block - 1) / block;
     yolov8_decode_box_mask_kernel<<<grid, block, 0, stream>>>(predict, num_bboxes, num_out, num_classes, 
-												  conf_thr, out_buffer_device);
+												  conf_thr, mat, out_buffer_device);
     block = 512;
     grid = (1000 + block - 1) / block;
     fast_nms_kernel<<<grid, block, 0, stream>>>(out_buffer_device, nms_thr, num_out);
@@ -474,18 +508,13 @@ void yolov8_postprocess_box_mask(float* predict, int num_bboxes, int num_classes
 
 void process_mask(float* out, float* proto, uint8_t* dst , int num_out, 
                   int dst_width, int dst_height, int out_w, int proto_size, cudaStream_t stream) {
-	// int threads = 512;
-	// int blocks = ceil(proto_size / threads);
-	// CUDA_CHECK(cudamemcpyH)
-	// memcpy(proto_buffer_host, proto, proto_size);
-    int width = out[2] / 4 + 0.5f;
-    int height = out[3] / 4 + 0.5f;
-	dim3 blockSize(32, 32);
-    dim3 gridSize((width + 31) / 32, (height + 31) / 32);   
+	int threads = 256;
+	int blocks = ceil(proto_size / threads);
+ 
 	CUDA_CHECK(cudaMemcpyAsync(single_out_buffer_device, out, 
 		num_out * sizeof(float), cudaMemcpyHostToDevice, stream));
-	process_mask_kernel<<<gridSize, blockSize, 0, stream>>>(single_out_buffer_device, proto, out_mask_buffer_device, 
+	process_mask_kernel<<<blocks, threads, 0, stream>>>(single_out_buffer_device, proto, out_mask_buffer_device, 
                         dst_width, dst_height, out_w, proto_size);
-	CUDA_CHECK(cudaMemcpyAsync(dst, out_mask_buffer_device, sizeof(uint8_t) * (dst_width * dst_height), cudaMemcpyDeviceToHost, stream));
+	CUDA_CHECK(cudaMemcpyAsync(dst, out_mask_buffer_device, sizeof(uint8_t) * dst_width * dst_height, cudaMemcpyDeviceToHost, stream));
 	CUDA_CHECK(cudaStreamSynchronize(stream));
 }

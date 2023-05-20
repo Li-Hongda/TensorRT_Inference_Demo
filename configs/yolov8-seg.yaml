@@ -1,7 +1,7 @@
 yolov8-seg:
     onnx_file:     "../weights/yolov8/yolov8s-seg.onnx"
     engine_file:   "../weights/yolov8/yolov8s-seg.trt"
-    type:          "coco80"
+    type:          "coco"
     mode:          "fp32"
     batchSize:     1
     imageWidth:    640

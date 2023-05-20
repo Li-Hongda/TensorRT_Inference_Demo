@@ -1,7 +1,7 @@
 yolov7:
     onnx_file:     "../weights/yolov7/yolov7.onnx"
     engine_file:   "../weights/yolov7/yolov7.trt"
-    type:          "coco80"
+    type:          "coco"
     mode:          "fp32"
     batchSize:     1
     imageWidth:    640

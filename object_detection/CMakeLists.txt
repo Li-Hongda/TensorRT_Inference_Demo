@@ -61,9 +61,6 @@ list(APPEND ALL_INCLUDE ${PROJECT_INCLUDE})
 
 include_directories(${ALL_INCLUDE})
 
-
-# add_subdirectory(nanodet)
-# add_subdirectory(Swin-Transformer)
 add_subdirectory(yolov5)
 # add_subdirectory(yolov6)
 add_subdirectory(yolov7)

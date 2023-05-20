@@ -17,32 +17,34 @@ namespace Category {
     };
     const std::vector<std::string> voc = {
         "aeroplane","bicycle","bird","boat","bottle","bus","car","cat","chair","cow","diningtable",
-        "dog","horse","motorbike","person","pottedplant","sheep","sofa","train","tvmonitor"
+        "dog","horse","motorbike","person","pottedplant","sheep","sofa","train","tv/monitor"
     };
 }
 
 namespace Color {
     const std::vector<cv::Scalar> coco { 
-        cv::Scalar(128, 77, 207),cv::Scalar(65, 32, 208),cv::Scalar(0, 224, 45),cv::Scalar(3, 141, 219),cv::Scalar(80, 239, 253),cv::Scalar(239, 184, 12),
-        cv::Scalar(7, 144, 145),cv::Scalar(161, 88, 57),cv::Scalar(0, 166, 46),cv::Scalar(218, 113, 53),cv::Scalar(193, 33, 128),cv::Scalar(190, 94, 113),
-        cv::Scalar(113, 123, 232),cv::Scalar(69, 205, 80),cv::Scalar(18, 170, 49),cv::Scalar(89, 51, 241),cv::Scalar(153, 191, 154),cv::Scalar(27, 26, 69),
-        cv::Scalar(20, 186, 194),cv::Scalar(210, 202, 167),cv::Scalar(196, 113, 204),cv::Scalar(9, 81, 88),cv::Scalar(191, 162, 67),cv::Scalar(227, 73, 120),
-        cv::Scalar(177, 31, 19),cv::Scalar(133, 102, 137),cv::Scalar(146, 72, 97),cv::Scalar(145, 243, 208),cv::Scalar(2, 184, 176),cv::Scalar(219, 220, 93),
-        cv::Scalar(238, 253, 234),cv::Scalar(197, 169, 160),cv::Scalar(204, 201, 106),cv::Scalar(13, 24, 129),cv::Scalar(40, 38, 4),cv::Scalar(5, 41, 34),
-        cv::Scalar(46, 94, 129),cv::Scalar(102, 65, 107),cv::Scalar(27, 11, 208),cv::Scalar(191, 240, 183),cv::Scalar(225, 76, 38),cv::Scalar(193, 89, 124),
-        cv::Scalar(30, 14, 175),cv::Scalar(144, 96, 90),cv::Scalar(181, 186, 86),cv::Scalar(102, 136, 34),cv::Scalar(158, 71, 15),cv::Scalar(183, 81, 247),
-        cv::Scalar(73, 69, 89),cv::Scalar(123, 73, 232),cv::Scalar(4, 175, 57),cv::Scalar(87, 108, 23),cv::Scalar(105, 204, 142),cv::Scalar(63, 115, 53),
-        cv::Scalar(105, 153, 126),cv::Scalar(247, 224, 137),cv::Scalar(136, 21, 188),cv::Scalar(122, 129, 78),cv::Scalar(145, 80, 81),cv::Scalar(51, 167, 149),
-        cv::Scalar(162, 173, 20),cv::Scalar(252, 202, 17),cv::Scalar(10, 40, 3),cv::Scalar(150, 90, 254),cv::Scalar(169, 21, 68),cv::Scalar(157, 148, 180),
-        cv::Scalar(131, 254, 90),cv::Scalar(7, 221, 102),cv::Scalar(19, 191, 184),cv::Scalar(98, 126, 199),cv::Scalar(210, 61, 56),cv::Scalar(252, 86, 59),
-        cv::Scalar(102, 195, 55),cv::Scalar(160, 26, 91),cv::Scalar(60, 94, 66),cv::Scalar(204, 169, 193),cv::Scalar(126, 4, 181),cv::Scalar(229, 209, 196),
-        cv::Scalar(195, 170, 186),cv::Scalar(155, 207, 148)
+        cv::Scalar(220, 20, 60), cv::Scalar(119, 11, 32), cv::Scalar(0, 0, 142), cv::Scalar(0, 0, 230), cv::Scalar(106, 0, 228), 
+        cv::Scalar(0, 60, 100), cv::Scalar(0, 80, 100), cv::Scalar(0, 0, 70), cv::Scalar(0, 0, 192), cv::Scalar(250, 170, 30), 
+        cv::Scalar(100, 170, 30), cv::Scalar(220, 220, 0), cv::Scalar(175, 116, 175), cv::Scalar(250, 0, 30), cv::Scalar(165, 42, 42), 
+        cv::Scalar(255, 77, 255), cv::Scalar(0, 226, 252), cv::Scalar(182, 182, 255), cv::Scalar(0, 82, 0), cv::Scalar(120, 166, 157), 
+        cv::Scalar(110, 76, 0), cv::Scalar(174, 57, 255), cv::Scalar(199, 100, 0), cv::Scalar(72, 0, 118), cv::Scalar(255, 179, 240), 
+        cv::Scalar(0, 125, 92), cv::Scalar(209, 0, 151), cv::Scalar(188, 208, 182), cv::Scalar(0, 220, 176), cv::Scalar(255, 99, 164), 
+        cv::Scalar(92, 0, 73), cv::Scalar(133, 129, 255), cv::Scalar(78, 180, 255), cv::Scalar(0, 228, 0), cv::Scalar(174, 255, 243), 
+        cv::Scalar(45, 89, 255), cv::Scalar(134, 134, 103), cv::Scalar(145, 148, 174), cv::Scalar(255, 208, 186), cv::Scalar(197, 226, 255), 
+        cv::Scalar(171, 134, 1), cv::Scalar(109, 63, 54), cv::Scalar(207, 138, 255), cv::Scalar(151, 0, 95), cv::Scalar(9, 80, 61), 
+        cv::Scalar(84, 105, 51), cv::Scalar(74, 65, 105), cv::Scalar(166, 196, 102), cv::Scalar(208, 195, 210), cv::Scalar(255, 109, 65), 
+        cv::Scalar(0, 143, 149), cv::Scalar(179, 0, 194), cv::Scalar(209, 99, 106), cv::Scalar(5, 121, 0), cv::Scalar(227, 255, 205), 
+        cv::Scalar(147, 186, 208), cv::Scalar(153, 69, 1), cv::Scalar(3, 95, 161), cv::Scalar(163, 255, 0), cv::Scalar(119, 0, 170), 
+        cv::Scalar(0, 182, 199), cv::Scalar(0, 165, 120), cv::Scalar(183, 130, 88), cv::Scalar(95, 32, 0), cv::Scalar(130, 114, 135), 
+        cv::Scalar(110, 129, 133), cv::Scalar(166, 74, 118), cv::Scalar(219, 142, 185), cv::Scalar(79, 210, 114), cv::Scalar(178, 90, 62), 
+        cv::Scalar(65, 70, 15), cv::Scalar(127, 167, 115), cv::Scalar(59, 105, 106), cv::Scalar(142, 108, 45), cv::Scalar(196, 172, 0), 
+        cv::Scalar(95, 54, 80), cv::Scalar(128, 76, 255), cv::Scalar(201, 57, 1), cv::Scalar(246, 0, 122), cv::Scalar(191, 162, 208)
     };
     const std::vector<cv::Scalar> voc {
-        cv::Scalar(128, 77, 207),cv::Scalar(65, 32, 208),cv::Scalar(0, 224, 45),cv::Scalar(3, 141, 219),cv::Scalar(80, 239, 253),cv::Scalar(239, 184, 12),
-        cv::Scalar(7, 144, 145),cv::Scalar(161, 88, 57),cv::Scalar(0, 166, 46),cv::Scalar(218, 113, 53),cv::Scalar(193, 33, 128),cv::Scalar(190, 94, 113),
-        cv::Scalar(113, 123, 232),cv::Scalar(69, 205, 80),cv::Scalar(18, 170, 49),cv::Scalar(89, 51, 241),cv::Scalar(153, 191, 154),cv::Scalar(27, 26, 69),
-        cv::Scalar(20, 186, 194),cv::Scalar(210, 202, 167),cv::Scalar(196, 113, 204),cv::Scalar(9, 81, 88),cv::Scalar(191, 162, 67),cv::Scalar(227, 73, 120)
+        cv::Scalar(106, 0, 228), cv::Scalar(119, 11, 32), cv::Scalar(165, 42, 42), cv::Scalar(0, 0, 192), cv::Scalar(197, 226, 255), 
+        cv::Scalar(0, 60, 100), cv::Scalar(0, 0, 142), cv::Scalar(255, 77, 255), cv::Scalar(153, 69, 1), cv::Scalar(120, 166, 157), 
+        cv::Scalar(0, 182, 199), cv::Scalar(0, 226, 252), cv::Scalar(182, 182, 255), cv::Scalar(0, 0, 230), cv::Scalar(220, 20, 60), 
+        cv::Scalar(163, 255, 0), cv::Scalar(0, 82, 0), cv::Scalar(3, 95, 161), cv::Scalar(0, 80, 100), cv::Scalar(183, 130, 88)
     };
 };
 

@@ -116,13 +116,7 @@ void Model::PreProcess(std::vector<cv::Mat>& img_batch) {
         cv::Mat d2s = cv::Mat::zeros(2, 3, CV_32FC1);
         cv::invertAffineTransform(s2d, d2s);
 
-        // memcpy(d2s.value, dst2src.ptr<float>(0), sizeof(d2s.value));
-        dst2src.v0 = d2s.ptr<float>(0)[0];
-        dst2src.v1 = d2s.ptr<float>(0)[1];
-        dst2src.v2 = d2s.ptr<float>(0)[2];
-        dst2src.v3 = d2s.ptr<float>(1)[0];
-        dst2src.v4 = d2s.ptr<float>(1)[1];
-        dst2src.v5 = d2s.ptr<float>(1)[2]; 
+        memcpy(&dst2src, d2s.ptr(), sizeof(dst2src));
         preprocess(img_batch[i].ptr(), dst2src, width, height, &gpu_buffers[0][bufferSize[0] * i], imageWidth, imageHeight, stream); 
         CUDA_CHECK(cudaStreamSynchronize(stream));
     }

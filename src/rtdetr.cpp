@@ -21,9 +21,9 @@ std::vector<Detections> RTDETR::InferenceImages(std::vector<cv::Mat> &imgBatch) 
     auto boxes = PostProcess(imgBatch, gpu_buffers[1], gpu_buffers[2]);
     auto t_end_post = std::chrono::high_resolution_clock::now();
     float total_post = std::chrono::duration<float, std::milli>(t_end_post - t_start_post).count();
-    std::cout << "preprocess time: "<< total_pre << "ms " <<
-    "detection inference time: " << total_inf << "ms " 
-    "postprocess time: " << total_post << "ms " << std::endl; 
+    // std::cout << "preprocess time: "<< total_pre << "ms " <<
+    // "detection inference time: " << total_inf << "ms " 
+    // "postprocess time: " << total_post << "ms " << std::endl; 
     return boxes;
 }
 
@@ -38,8 +38,12 @@ std::vector<Detections> RTDETR::PostProcess(const std::vector<cv::Mat> &imgBatch
         float* box_per_img = output1 + index * predboxSize;
         float* score_per_img = output2 + index * predscoreSize;
         cuda_postprocess_init(6, imageWidth, imageHeight);
+        auto t_start_post = std::chrono::high_resolution_clock::now();
         rtdetr_postprocess_box(box_per_img, score_per_img, num_bboxes, num_classes, 6, 
                                conf_thr, imageWidth, imageHeight, dst2src, stream, cpu_buffers[2]);
+        auto t_end_post = std::chrono::high_resolution_clock::now();
+        float total_post = std::chrono::duration<float, std::milli>(t_end_post - t_start_post).count(); 
+        std::cout << "postprocess time: " << total_post << "ms " << std::endl;
         int num_boxes = std::min((int)cpu_buffers[2][0], 300);
         for (int i = 0; i < num_boxes; i++) {
             Box box;

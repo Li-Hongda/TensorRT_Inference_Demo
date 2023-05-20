@@ -13,39 +13,48 @@
 </div>
 
 ## 1.Introduction
-This repo use TensorRT-8.x to deploy well-trained models.
-
+This repo use TensorRT-8.x to deploy well-trained models, both image preprocessing and postprocessing are performed with CUDA, which realizes high-speed inference.
 ## 2.Update
+<details open>
+<summary>update process</summary>
 
-- [x] [YOLOv5](https://github.com/ultralytics/yolov5) (sd)
-- [x] [YOLOv5-seg](https://github.com/ultralytics/yolov5)
-- [x] [YOLOv7](https://github.com/WongKinYiu/yolov7)
-- [x] [YOLOv8](https://github.com/ultralytics/ultralytics)
-- [x] [YOLOv8-seg](https://github.com/ultralytics/ultralytics)
-
-
++ 2023.05.01 🚀 Create the repo.
++ 2023.05.03 🚀 Support yolov5 detection.
++ 2023.05.05 🚀 Support yolov7 and yolov5 instance-segmentation.
++ 2023.05.10 🚀 Support yolov8 detection and instance-segmentation.
++ 2023.05.12 🚀 Support cuda preprocess for speed up.
++ 2023.05.16 🚀 Support cuda box postprocess.
++ 2023.05.19 🚀 Support cuda mask postprocess and support rtdetr.
+</details>
 
 ## 3.Support Models
-All speed tests were performed on RTX 3090 with COCO Val set.The time calculated here is the sum of the time of image preprocess, inference and postprocess, since image loading and visualizing are not counted in, the actual spedd will be a little slower.
+<details open>
+<summary>supported models</summary>
+- [x] [YOLOv5](https://github.com/ultralytics/yolov5)<br>
+- [x] [YOLOv5-seg](https://github.com/ultralytics/yolov5)<br>
+- [x] [YOLOv7](https://github.com/WongKinYiu/yolov7)<br>
+- [x] [YOLOv8](https://github.com/ultralytics/ultralytics)<br>
+- [x] [YOLOv8-seg](https://github.com/ultralytics/ultralytics)<br>
+- [x] [RT-DETR](https://github.com/PaddlePaddle/PaddleDetection/tree/develop/configs/rtdetr)<br>
+- [] [YOLOv6](https://github.com/meituan/YOLOv6) (to be continued)<br>
+- [] [YOLO-NAS](https://github.com/Deci-AI/super-gradients) (to be continued)<br>
+</details>
 
-| Models | BatchSize | Mode | Input Shape(HxW) | FPS* | FPS  |
-|-|-|:-:|:-:|:-:|:-:|
-| YOLOv5-n v7.0 | 1 | FP32 | 640x640 | 724 | 
+All speed tests were performed on RTX 3090 with COCO Val set.The time calculated here is the sum of the time of image loading, preprocess, inference and postprocess, so it's going to be slower than what's reported in the paper.
+<div align='center'>
+
+| Models | BatchSize | Mode | Input Shape(HxW) |  FPS  |
+|-|-|:-:|:-:|:-:|
 | YOLOv5-s v7.0  | 1 | FP32 | 640x640 | 468 |
 | YOLOv5-s v7.0  | 32 | FP32 | 640x640 | - |
-| YOLOv5-m v7.0  | 1 | FP32 | 640x640 | 270 |
-| YOLOv5-l v7.0  | 1 | FP32 | 640x640 | 151 |
-| YOLOv5-x v7.0  | 1 | FP32 | 640x640 | 94  |
+| YOLOv5-seg-s v7.0  | 1 | FP32 | 640x640 | - |
 | YOLOv7  | 1 | FP32 | 640x640 | 154 |
-| YOLOv7x  | 1 | FP32 | 640x640 | - | - |
-| YOLOv8-n  | 1 | FP32 | 640x640 | 390 | 127 |
-| YOLOv8-s  | 1 | FP32 | 640x640 | 171 | 101 |
-| YOLOv8-m  | 1 | FP32 | 640x640 | 122 |
-| YOLOv8-l  | 1 | FP32 | 640x640 | 88 |
-| YOLOv8-x  | 1 | FP32 | 640x640 | 68 |
-| RT-DETR  | 1 | FP32 | 640x640 | - | - |
-| RT-DETR  | 1 | FP32 | 640x640 | - | - |
-+ FPS* means that the time of image loading, image processing and visualization are taken into account when calculating.FPS only counts image processing time(preprocess, inference, postprocess).
+| YOLOv8-s  | 1 | FP32 | 640x640 | 171 |
+| YOLOv8-s  | 1 | FP32 | 640x640 | - |
+| RT-DETR  | 1 | FP32 | 640x640 | - |
+| RT-DETR  | 1 | FP32 | 640x640 | - |
+</div>
+
 
 ## 4.Usage
 1. Clone the repo.
@@ -64,5 +73,13 @@ make -j$(nproc)
 cd bin
 ./object_detection yolov5 /path/to/input/dir 
 ```
+
+## 5.Reference
+[0].https://github.com/NVIDIA/TensorRT<br>
+[1].https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#c_topics<br>
+[2].https://github.com/linghu8812/tensorrt_inference<br>
+[3].https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#<br>
+[4].https://blog.csdn.net/bobchen1017?type=blog<br>
+
 
 

@@ -30,6 +30,7 @@ This repo use TensorRT-8.x to deploy well-trained models, both image preprocessi
 ## 3.Support Models
 <details open>
 <summary>supported models</summary>
+
 - [x] [YOLOv5](https://github.com/ultralytics/yolov5)<br>
 - [x] [YOLOv5-seg](https://github.com/ultralytics/yolov5)<br>
 - [x] [YOLOv7](https://github.com/WongKinYiu/yolov7)<br>

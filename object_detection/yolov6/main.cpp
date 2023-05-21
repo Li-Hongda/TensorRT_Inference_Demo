@@ -1,4 +1,5 @@
-#include "../../include/rtdetr.h"
+#include "../../include/yolov6.h"
+
 
 int main(int argc, char** argv)
 {
@@ -6,11 +7,11 @@ int main(int argc, char** argv)
     std::string cfg_dir = "../configs";
     std::string cfg_suffix = ".yaml";
     std::string savedir = "../results";
-    auto savepath = savedir + "/" + "rtdetr" + "/";
-    auto cfg = cfg_dir + "/" + "rtdetr" + cfg_suffix;    
+    auto savepath = savedir + "/" + "yolov6" + "/";
+    auto cfg = cfg_dir + "/" + "yolov6" + cfg_suffix;    
     YAML::Node root = YAML::LoadFile(cfg);
-    RTDETR RTDETR(root["rtdetr"]);
-    RTDETR.LoadEngine();
-    RTDETR.Inference(inputpath, savepath);
+    YOLOv6 YOLOv6(root["yolov6"]);
+    YOLOv6.LoadEngine();
+    YOLOv6.Inference(inputpath, savepath);
     return 0;
 }

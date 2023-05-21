@@ -3,7 +3,7 @@
 
 
 #include "yolov5.h"
-// #include "yolov6.h"
+#include "yolov6.h"
 #include "yolov7.h"
 #include "yolov8.h"
 #include "rtdetr.h"

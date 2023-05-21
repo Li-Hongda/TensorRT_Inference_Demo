@@ -7,8 +7,8 @@ std::shared_ptr<Model> build_model(std::string model_arch, std::string cfg) {
         model = std::make_shared<YOLOv5>(root[model_arch]);
     else if (model_arch == "yolov5-seg")
         model = std::make_shared<YOLOv5_seg>(root[model_arch]);
-    // else if (model_arch == "yolov6")
-    //     model = std::make_shared<YOLOv6>(root[model_arch]);
+    else if (model_arch == "yolov6")
+        model = std::make_shared<YOLOv6>(root[model_arch]);
     else if (model_arch == "yolov7")
         model = std::make_shared<YOLOv7>(root[model_arch]);
     else if (model_arch == "yolov8")

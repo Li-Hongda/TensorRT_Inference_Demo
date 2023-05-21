@@ -1,5 +1,5 @@
 #include "common.h"
-#include<dirent.h>
+#include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -49,18 +49,32 @@ std::string replace(std::string str, const std::string& from, const std::string&
 }
 
 static bool isPathExists(const std::string& path){
-    struct stat   buffer;
+    struct stat buffer;
     return (stat (path.c_str(), &buffer) == 0);
 }
 
 static bool isFile(const std::string& filename) {
-    struct stat   buffer;
+    struct stat buffer;
     return S_ISREG(buffer.st_mode);
 }
  
 static bool isDirectory(const std::string& filefodler) {
-    struct stat   buffer;
+    struct stat buffer;
     return S_ISDIR(buffer.st_mode);
+}
+
+static void createDirectory(const std::string &path) {
+    uint32_t pathLen = path.length();
+
+    char tmpDirPath[256] = { 0 };
+    for (uint32_t i = 0; i < pathLen; ++i) {
+        tmpDirPath[i] = path[i];
+        if (tmpDirPath[i] == '\\' || tmpDirPath[i] == '/') {
+            if (access(tmpDirPath, 0) != 0) {
+                int32_t ret = mkdir(tmpDirPath, 00700);
+            }
+        }
+    }
 }
 
 int check_dir(const std::string & path, const bool is_mkdir) noexcept {
@@ -85,6 +99,7 @@ int check_dir(const std::string & path, const bool is_mkdir) noexcept {
             mkdir(path.c_str(), 00700);
         }
     } else {
-        mkdir(path.c_str(), 00700);
+        // mkdir(path.c_str(), 00700);
+        createDirectory(path);
     }
 }

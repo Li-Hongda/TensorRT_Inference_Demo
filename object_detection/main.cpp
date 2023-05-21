@@ -9,7 +9,7 @@ int main(int argc, char **argv)
     std::string cfg_dir = "../configs";
     std::string cfg_suffix = ".yaml";
     std::string savedir = "../results";
-    auto savepath = savedir + "/" + model_arch;
+    auto savepath = savedir + "/" + model_arch + "/";
     auto cfg = cfg_dir + "/" + model_arch + cfg_suffix;
     auto model = build_model(model_arch, cfg);
     check_dir(savepath, false);

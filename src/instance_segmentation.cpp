@@ -18,7 +18,6 @@ InstanceSegmentation::InstanceSegmentation(const YAML::Node &config) : Model(con
 }
 
 void InstanceSegmentation::Inference(const std::string &input_path, const cv::String &save_path, const bool video) {
-
     cv::VideoCapture capture;
     capture.open(input_path);
     cv::Size size = cv::Size((int)capture.get(cv::CAP_PROP_FRAME_WIDTH), (int)capture.get(cv::CAP_PROP_FRAME_HEIGHT));        
@@ -35,33 +34,26 @@ void InstanceSegmentation::Inference(const std::string &input_path, const cv::St
     int index = 0;
     float total_time = 0;
     cv::Mat frame;
-
-    while (capture.isOpened())
-    {
+    cuda_preprocess_init(maxImageSize);
+    while (capture.isOpened()) {
         index++;
-        if (imgBatch.size() < batchSize) // get input
-        {
+        if (imgBatch.size() < batchSize) {
             capture.read(frame);
-
-            if (frame.empty())
-            {
-                sample::gLogWarning << "no more video or camera frame" << std::endl;
+            if (frame.empty()) {
+                std::cout << "no more video or camera frame" << std::endl;
                 auto start_time = std::chrono::high_resolution_clock::now();
                 std::vector<Segmentations> seg_results = InferenceImages(imgBatch);
                 auto end_time = std::chrono::high_resolution_clock::now();
                 segs.insert(segs.end(), seg_results.begin(), seg_results.end());
                 imgs.insert(imgs.end(), imgBatch.begin(), imgBatch.end());                    
-                imgBatch.clear(); // clear
+                imgBatch.clear(); 
                 total_time += std::chrono::duration<float, std::milli>(end_time - start_time).count();
                 break;
-            }
-            else
-            {
+            } else {
                 imgBatch.emplace_back(frame.clone());
             }
         }
-        else // infer
-        {
+        else {
             auto start_time = std::chrono::high_resolution_clock::now();
             auto seg_results = InferenceImages(imgBatch);
             auto end_time = std::chrono::high_resolution_clock::now();
@@ -84,7 +76,7 @@ void InstanceSegmentation::Inference(const std::string &input_path, const std::s
     std::vector<std::string> imgInfo;
     imgInfo.reserve(batchSize);
     float total_time = 0;
-    cuda_preprocess_init(kMaxInputImageSize);
+    cuda_preprocess_init(maxImageSize);
     // cuda_postprocess_init(39, imageWidth, imageHeight);
     for (const std::string &image_name : image_list) {
         index++;
@@ -176,11 +168,39 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
             continue;
         auto instances = segmentations[i].segs;
         for(const auto &ins : instances) {
+            cv::Mat mask = ins.mask;
+            cv::Mat img_mask = scale_mask(mask, frame);
+            cv::Mat reg_img = cv::Mat::zeros(frame.rows, frame.cols, CV_8UC1);
+            for (int row = ins.y; row < ins.y + ins.h; row++) {	
+                if (row < 0 || row >= frame.rows) continue;
+                cv::Vec<uint8_t, 1> *data_Ptr = reg_img.ptr<cv::Vec<uint8_t, 1>> (row);
+                for (int col = ins.x; col < ins.x + ins.w; col++)
+                {
+                    if (col < 0 || col >= frame.cols) continue;
+                    data_Ptr[col][0] = 1;
+                }
+            } 
+            cv::bitwise_and(img_mask, reg_img, img_mask);
+
+            std::vector<cv::Mat> contours;
+            cv::Mat hierarchy;
+            cv::Mat colored_img = frame.clone();
+            cv::findContours(img_mask, contours, hierarchy, 
+                             cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
+            cv::drawContours(colored_img, contours, -1, class_colors[ins.label], -1, cv::LINE_8,
+                             hierarchy, 100);                
+            frame = 0.4 * colored_img + 0.6 * frame;
+
             auto score = cv::format("%.3f", ins.score);
             std::string text = class_labels[ins.label] + "|" + score;
-            cv::putText(frame, text, cv::Point(ins.x - ins.w / 2, ins.y - ins.h / 2 - 5),
-                    cv::FONT_HERSHEY_SIMPLEX, 0.7, class_colors[ins.label], 2);
-            cv::Rect rect(ins.x - ins.w / 2, ins.y - ins.h / 2, ins.w, ins.h);
+            cv::Size text_size = cv::getTextSize(text, font_face, font_scale, thickness, nullptr);
+            cv::Point org;
+            org.x = ins.x ;
+            org.y = ins.y + text_size.height + 2;
+            cv::Rect text_back = cv::Rect(org.x, org.y - text_size.height, text_size.width, text_size.height + 5); 
+            cv::rectangle(frame, text_back, class_colors[ins.label], -1);
+            cv::putText(frame, text, org, font_face, font_scale, cv::Scalar(255, 255, 255), thickness);
+            cv::Rect rect(ins.x, ins.y, ins.w, ins.h);
             cv::rectangle(frame, rect, class_colors[ins.label], 2, cv::LINE_8, 0);
         }        
         writer.write(frame);

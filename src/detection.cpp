@@ -17,7 +17,6 @@ Detection::Detection(const YAML::Node &config) : Model(config) {
 }
 
 void Detection::Inference(const std::string &input_path, const cv::String &save_path, const bool video) {
-
     cv::VideoCapture capture;
     capture.open(input_path);
     cv::Size size = cv::Size((int)capture.get(cv::CAP_PROP_FRAME_WIDTH), (int)capture.get(cv::CAP_PROP_FRAME_HEIGHT));        
@@ -34,33 +33,26 @@ void Detection::Inference(const std::string &input_path, const cv::String &save_
     int index = 0;
     float total_time = 0;
     cv::Mat frame;
-
-    while (capture.isOpened())
-    {
+    cuda_preprocess_init(maxImageSize);
+    while (capture.isOpened()) {
         index++;
-        if (imgBatch.size() < batchSize) // get input
-        {
+        if (imgBatch.size() < batchSize) {
             capture.read(frame);
-
-            if (frame.empty())
-            {
-                sample::gLogWarning << "no more video or camera frame" << std::endl;
+            if (frame.empty()) {
+                std::cout << "no more video or camera frame" << std::endl;
                 auto start_time = std::chrono::high_resolution_clock::now();
                 std::vector<Detections> det_results = InferenceImages(imgBatch);
                 auto end_time = std::chrono::high_resolution_clock::now();
                 dets.insert(dets.end(), det_results.begin(), det_results.end());
                 imgs.insert(imgs.end(), imgBatch.begin(), imgBatch.end());                    
-                imgBatch.clear(); // clear
+                imgBatch.clear(); 
                 total_time += std::chrono::duration<float, std::milli>(end_time - start_time).count();
                 break;
-            }
-            else
-            {
+            } else {
                 imgBatch.emplace_back(frame.clone());
             }
         }
-        else // infer
-        {
+        else {
             auto start_time = std::chrono::high_resolution_clock::now();
             auto det_results = InferenceImages(imgBatch);
             auto end_time = std::chrono::high_resolution_clock::now();
@@ -71,7 +63,6 @@ void Detection::Inference(const std::string &input_path, const cv::String &save_
         }
     }
     Visualize(dets, imgs, save_path, fps, size);
-
 }
 
 void Detection::Inference(const std::string &input_path, const std::string &save_path) {    
@@ -83,7 +74,7 @@ void Detection::Inference(const std::string &input_path, const std::string &save
     std::vector<std::string> imgInfo;
     imgInfo.reserve(batchSize);
     float total_time = 0;
-    cuda_preprocess_init(kMaxInputImageSize);
+    cuda_preprocess_init(maxImageSize);
     for (const std::string &image_name : image_list) {
         index++;
         // TODO: figure out why double free.
@@ -147,19 +138,26 @@ void Detection::Visualize(const std::vector<Detections> &detections,
                           const cv::String save_name, 
                           int fps, cv::Size size) {
     auto fourcc = cv::VideoWriter::fourcc('m','p','4','v');
+    int font_face = cv::FONT_HERSHEY_SIMPLEX;
+    double font_scale = 0.5f;
+    float thickness = 0.5;      
     cv::VideoWriter writer(save_name, fourcc, fps, size, true);
     for (int i = 0; i < (int)frames.size(); i++){
         auto frame = frames[i];
-        if (!frame.data)
-            continue;
+        if (!frame.data) continue;
         auto bboxes = detections[i].dets;
         for(const auto &bbox : bboxes) {
             auto score = cv::format("%.3f", bbox.score);
             std::string text = class_labels[bbox.label] + "|" + score;
-            cv::putText(frame, text, cv::Point(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2 - 5),
-                    cv::FONT_HERSHEY_SIMPLEX, 0.7, class_colors[bbox.label], 2);
-            cv::Rect rect(bbox.x - bbox.w / 2, bbox.y - bbox.h / 2, bbox.w, bbox.h);
-            cv::rectangle(frame, rect, class_colors[bbox.label], 2, cv::LINE_8, 0);
+            cv::Size text_size = cv::getTextSize(text, font_face, font_scale, thickness, nullptr);
+            cv::Point org;
+            org.x = bbox.x;
+            org.y = bbox.y + text_size.height + 2; 
+            cv::Rect text_back = cv::Rect(org.x, org.y - text_size.height, text_size.width, text_size.height + 5); 
+            cv::rectangle(frame, text_back, class_colors[bbox.label], -1);
+            cv::putText(frame, text, org, font_face, font_scale, cv::Scalar(255, 255, 255), thickness);
+            cv::Rect rect(bbox.x, bbox.y, bbox.w, bbox.h);
+            cv::rectangle(frame, rect, class_colors[bbox.label], 2, cv::LINE_8, 0); 
         }        
         writer.write(frame);
     }

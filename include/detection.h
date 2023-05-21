@@ -56,7 +56,7 @@ struct Box {
     float score;
     int label;
 };
-const static int kMaxInputImageSize = 1024 * 1024;
+const static int maxImageSize = 2048 * 2048;
 struct Detections {
     std::vector<Box> dets;
 };

@@ -89,9 +89,9 @@ void Detection::Inference(const std::string &input_path, const std::string &save
         if (imgBatch.size() == batchSize or index == image_list.size()){
             auto infer_start = std::chrono::high_resolution_clock::now();
             auto det_results = InferenceImages(imgBatch);
-            Visualize(det_results, imgBatch, imgInfo);
             auto infer_end = std::chrono::high_resolution_clock::now();
             total_time += std::chrono::duration<float, std::milli>(infer_end - infer_start).count();            
+            Visualize(det_results, imgBatch, imgInfo);
             imgBatch.clear();
             imgInfo.clear(); 
         }

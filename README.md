@@ -25,6 +25,7 @@ This repo use TensorRT-8.x to deploy well-trained models, both image preprocessi
 + 2023.05.12 🚀 Support cuda preprocess for speed up.
 + 2023.05.16 🚀 Support cuda box postprocess.
 + 2023.05.19 🚀 Support cuda mask postprocess and support rtdetr.
++ 2023.05.21 🚀 Support yolov6.
 </details>
 
 ## 3.Support Models
@@ -37,7 +38,7 @@ This repo use TensorRT-8.x to deploy well-trained models, both image preprocessi
 - [x] [YOLOv8](https://github.com/ultralytics/ultralytics)<br>
 - [x] [YOLOv8-seg](https://github.com/ultralytics/ultralytics)<br>
 - [x] [RT-DETR](https://github.com/PaddlePaddle/PaddleDetection/tree/develop/configs/rtdetr)<br>
-- [ ] [YOLOv6](https://github.com/meituan/YOLOv6) (to be continued)<br>
+- [ ] [YOLOv6](https://github.com/meituan/YOLOv6)<br>
 - [ ] [YOLO-NAS](https://github.com/Deci-AI/super-gradients) (to be continued)<br>
 </details>
 
@@ -46,13 +47,13 @@ All speed tests were performed on RTX 3090 with COCO Val set.The time calculated
 
 | Models | BatchSize | Mode | Resolution |  FPS  |
 |-|-|:-:|:-:|:-:|
-| YOLOv5-s v7.0  | 1 | FP32 | 640x640 | 468 |
+| YOLOv5-s v7.0  | 1 | FP32 | 640x640 | 200 |
 | YOLOv5-s v7.0  | 32 | FP32 | 640x640 | - |
-| YOLOv5-seg-s v7.0  | 1 | FP32 | 640x640 | - |
-| YOLOv7  | 1 | FP32 | 640x640 | 154 |
+| YOLOv5-seg-s v7.0  | 1 | FP32 | 640x640 | 155 |
+| YOLOv6-s v3  | 1 | FP32 | 640x640 | 163 |
+| YOLOv7  | 1 | FP32 | 640x640 | 107 |
 | YOLOv8-s  | 1 | FP32 | 640x640 | 171 |
-| YOLOv8-s  | 1 | FP32 | 640x640 | - |
-| RT-DETR  | 1 | FP32 | 640x640 | - |
+| YOLOv8-seg-s  | 1 | FP32 | 640x640 | 122 |
 | RT-DETR  | 1 | FP32 | 640x640 | - |
 </div>
 
@@ -96,7 +97,7 @@ cd bin
 ```
 
 > Notes:
-> 1. The output of the model is required for post-processing is num_bboxes (imageHeight x image Width) x num_pred(num_cls + coordinates + confidence),while the output of YOLOv8 is num_pred * num_bboxes,which means the predicted values of the same box are not contiguous in memory.For convenience, the corresponding dimensions of the original pytorch output need to be transposed when exporting to ONNX model.
+> 1. The output of the model is required for post-processing is num_bboxes (imageHeight x image Width) x num_pred(num_cls + coordinates + confidence),while the output of YOLOv8 is num_pred x num_bboxes,which means the predicted values of the same box are not contiguous in memory.For convenience, the corresponding dimensions of the original pytorch output need to be transposed when exporting to ONNX model.
 
 
 

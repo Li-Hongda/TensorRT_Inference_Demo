@@ -3,7 +3,7 @@
 
 #include "yolov8.h"
 
-class YOLOv6 : public YOLOv8 {
+class YOLOv6 : public YOLO {
 public:
     explicit YOLOv6(const YAML::Node &config);
 };

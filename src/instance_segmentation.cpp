@@ -81,7 +81,10 @@ void InstanceSegmentation::Inference(const std::string &input_path, const std::s
     for (const std::string &image_name : image_list) {
         index++;
         // TODO: figure out why double free.
+        auto load_start = std::chrono::high_resolution_clock::now();
         cv::Mat img = cv::imread(image_name);
+        auto load_end = std::chrono::high_resolution_clock::now();
+        total_time += std::chrono::duration<float, std::milli>(load_end - load_start).count();
         imgBatch.emplace_back(img.clone());
         auto save_name = replace(image_name, input_path, save_path);
         imgInfo.emplace_back(save_name);

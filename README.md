@@ -87,7 +87,9 @@ mkdir build && cd build
 cmake ..
 make -j$(nproc)
 ```
-4. The executable file will be generated in `bin` in the repo directory if compile successfully.Then enjoy yourself with command like this:
+4. Download the TRT engine or ONNX model and put them in `weights/MODEL_NAME`. Then modify the configuration file in `configs`.
+
+5. The executable file will be generated in `bin` in the repo directory if compile successfully.Then enjoy yourself with command like this:
 ```
 cd bin
 ./object_detection yolov5 /path/to/input/dir 

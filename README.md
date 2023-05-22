@@ -1,15 +1,15 @@
 # TensorRT_Inference_Demo
 <div align="center">
-<img src="assets/000000005001.jpg" height="200px" width="240px" >
-<img src="assets/000000142324.jpg" height="200px" width="240px" >
-<img src="assets/000000007816.jpg" height="200px" width="240px" >
+<img src="assets/000000005001.jpg" height="200px" width="180px" >
+<img src="assets/000000142324.jpg" height="200px" width="180px" >
+<img src="assets/000000007816.jpg" height="200px" width="180px" >
 <img src="assets/000000017899.jpg" height="200px" width="150px" >
 
-<img src="assets/000000157807.jpg" height="200px" width="240px" >
+<img src="assets/000000157807.jpg" height="200px" width="180px" >
 <img src="assets/000000294695.jpg" height="200px" 
-width="240px" >
+width="180px" >
 <img src="assets/000000579158.jpg" height="200px" 
-width="240px" >
+width="180px" >
 <img src="assets/000000007977.jpg" height="200px" width="150px" >
 
 </div>

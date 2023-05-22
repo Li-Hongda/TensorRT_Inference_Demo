@@ -107,6 +107,7 @@ void Model::LoadEngine(){
 }
 
 void Model::PreProcess(std::vector<cv::Mat>& img_batch) {
+    dst2src.reserve(batchSize);
     for (size_t i = 0; i < img_batch.size(); i++) {
         int height = img_batch[i].rows; 
         int width = img_batch[i].cols;
@@ -115,9 +116,10 @@ void Model::PreProcess(std::vector<cv::Mat>& img_batch) {
         0.f, scale, (-scale * height + imageHeight + scale - 1) * 0.5);
         cv::Mat d2s = cv::Mat::zeros(2, 3, CV_32FC1);
         cv::invertAffineTransform(s2d, d2s);
-
-        memcpy(&dst2src, d2s.ptr(), sizeof(dst2src));
-        preprocess(img_batch[i].ptr(), dst2src, width, height, &gpu_buffers[0][bufferSize[0] * i], imageWidth, imageHeight, stream); 
+        AffineMatrix mat;
+        memcpy(&mat, d2s.ptr(), sizeof(mat));
+        dst2src.emplace_back(mat);
+        preprocess(img_batch[i].ptr(), mat, width, height, &gpu_buffers[0][bufferSize[0] * i], imageWidth, imageHeight, stream); 
         CUDA_CHECK(cudaStreamSynchronize(stream));
     }
 }

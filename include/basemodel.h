@@ -19,7 +19,7 @@ protected:
     std::string onnx_file;
     std::string engine_file;
     std::string mode;
-    AffineMatrix dst2src;
+    std::vector<AffineMatrix> dst2src;
     int batchSize;
     int imageWidth;
     int imageHeight;

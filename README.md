@@ -1,7 +1,16 @@
 # TensorRT_Inference_Demo
 <div align="center">
-<img src="assets/000000005001.jpg" height="200px" >
-<img src="assets/000000007816.jpg" height="200px" >
+<img src="assets/000000005001.jpg" height="200px" width="240px" >
+<img src="assets/000000142324.jpg" height="200px" width="240px" >
+<img src="assets/000000007816.jpg" height="200px" width="240px" >
+<img src="assets/000000017899.jpg" height="200px" width="150px" >
+
+<img src="assets/000000157807.jpg" height="200px" width="240px" >
+<img src="assets/000000294695.jpg" height="200px" 
+width="240px" >
+<img src="assets/000000579158.jpg" height="200px" 
+width="240px" >
+<img src="assets/000000007977.jpg" height="200px" width="150px" >
 
 </div>
 
@@ -38,7 +47,7 @@ This repo use TensorRT-8.x to deploy well-trained models, both image preprocessi
 - [x] [YOLOv8](https://github.com/ultralytics/ultralytics)<br>
 - [x] [YOLOv8-seg](https://github.com/ultralytics/ultralytics)<br>
 - [x] [RT-DETR](https://github.com/PaddlePaddle/PaddleDetection/tree/develop/configs/rtdetr)<br>
-- [ ] [YOLOv6](https://github.com/meituan/YOLOv6)<br>
+- [x] [YOLOv6](https://github.com/meituan/YOLOv6)<br>
 - [ ] [YOLO-NAS](https://github.com/Deci-AI/super-gradients) (to be continued)<br>
 </details>
 

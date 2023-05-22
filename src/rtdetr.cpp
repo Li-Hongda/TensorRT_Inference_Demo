@@ -39,7 +39,7 @@ std::vector<Detections> RTDETR::PostProcess(const std::vector<cv::Mat> &imgBatch
         float* score_per_img = output2 + index * predscoreSize;
         cuda_postprocess_init(6, imageWidth, imageHeight);
         rtdetr_postprocess_box(box_per_img, score_per_img, num_bboxes, num_classes, 6, 
-                               conf_thr, imageWidth, imageHeight, dst2src, stream, cpu_buffers[2]);
+                               conf_thr, imageWidth, imageHeight, dst2src[index], stream, cpu_buffers[2]);
         int num_boxes = std::min((int)cpu_buffers[2][0], 300);
         for (int i = 0; i < num_boxes; i++) {
             Box box;
@@ -56,5 +56,6 @@ std::vector<Detections> RTDETR::PostProcess(const std::vector<cv::Mat> &imgBatch
         index++;
         // cuda_postprocess_destroy();
     }
+    dst2src.clear();    
     return vec_result;
 }

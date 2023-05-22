@@ -43,7 +43,7 @@ std::vector<Detections> YOLO::PostProcess(const std::vector<cv::Mat> &imgBatch, 
         Detections result;
         float* pred_per_img = output + index * predSize;
         cuda_postprocess_init(7, imageWidth, imageHeight);
-        postprocess_box(pred_per_img, num_bboxes, num_classes, 7, conf_thr, nms_thr, dst2src, stream, cpu_buffers[1]);
+        postprocess_box(pred_per_img, num_bboxes, num_classes, 7, conf_thr, nms_thr, dst2src[index], stream, cpu_buffers[1]);
         int num_boxes = std::min((int)cpu_buffers[1][0], 1000);
         for (int i = 0; i < num_boxes; i++) {
             Box box;
@@ -59,7 +59,8 @@ std::vector<Detections> YOLO::PostProcess(const std::vector<cv::Mat> &imgBatch, 
         }
         vec_result.emplace_back(result);
         index++;
-    }    
+    }
+    dst2src.clear();
     return vec_result;
 }
 
@@ -107,7 +108,7 @@ std::vector<Segmentations> YOLO_seg::PostProcess(const std::vector<cv::Mat> &img
         Segmentations result;
         float* proto = output1 + index * protoSize;
         float* pred_per_img = output2 + index * predSize;
-        postprocess_box_mask(pred_per_img, num_bboxes, num_classes, 39, conf_thr, nms_thr, dst2src, stream, cpu_buffers[1]);
+        postprocess_box_mask(pred_per_img, num_bboxes, num_classes, 39, conf_thr, nms_thr, dst2src[index], stream, cpu_buffers[1]);
         int num_boxes = std::min((int)cpu_buffers[1][0], 1000);
         for (int i = 0; i < num_boxes; i++) {
             Instance ins;
@@ -130,5 +131,6 @@ std::vector<Segmentations> YOLO_seg::PostProcess(const std::vector<cv::Mat> &img
         index++;
     }
     // cuda_postprocess_destroy();
+    dst2src.clear();    
     return vec_result;
 }

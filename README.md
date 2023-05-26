@@ -109,7 +109,7 @@ cd bin
 ```
 
 > Notes:
-> 1. The output of the model is required for post-processing is num_bboxes (imageHeight x image Width) x num_pred(num_cls + coordinates + confidence),while the output of YOLOv8 is num_pred x num_bboxes,which means the predicted values of the same box are not contiguous in memory.For convenience, the corresponding dimensions of the original pytorch output need to be transposed when exporting to ONNX model.
+> 1. The output of the model is required for post-processing is num_bboxes (imageHeight x imageWidth) x num_pred(num_cls + coordinates + confidence),while the output of YOLOv8 is num_pred x num_bboxes,which means the predicted values of the same box are not contiguous in memory.For convenience, the corresponding dimensions of the original pytorch output need to be transposed when exporting to ONNX model.
 > 2. The dynamic shape engine is convenient but sacrifices some inference speed compared with the static model of the same batchsize.Therefore, if you want to pursue faster inference speed, it is better to export the ONNX model of fixed batchsize, such as batchsize 32.
 
 

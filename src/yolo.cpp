@@ -9,7 +9,7 @@ YOLO::YOLO(const YAML::Node &config) : Detection(config) {
     {
         num_bboxes += int(imageHeight / stride) * int(imageWidth / stride) * 3;
         index+=1;
-    }         
+    } 
 }
 
 std::vector<Detections> YOLO::InferenceImages(std::vector<cv::Mat> &imgBatch) noexcept{
@@ -29,25 +29,26 @@ std::vector<Detections> YOLO::InferenceImages(std::vector<cv::Mat> &imgBatch) no
     auto boxes = PostProcess(imgBatch, gpu_buffers[1]);
     auto t_end_post = std::chrono::high_resolution_clock::now();
     float total_post = std::chrono::duration<float, std::milli>(t_end_post - t_start_post).count();
-    std::cout << "preprocess time: "<< total_pre << "ms " <<
-    "detection inference time: " << total_inf << "ms " 
-    "postprocess time: " << total_post << "ms " << std::endl; 
+    std::cout << std::fixed << std::setprecision(4) << 
+    "batch preprocess time: "<< total_pre << "ms " <<
+    "batch inference time: " << total_inf << "ms " 
+    "batch postprocess time: " << total_post << "ms " << std::endl;  
     return boxes;
 }
 
 std::vector<Detections> YOLO::PostProcess(const std::vector<cv::Mat> &imgBatch, float* output) {
     std::vector<Detections> vec_result;
     int index = 0;
-    auto predSize = bufferSize[1] / sizeof(float);
+    auto predSize = bufferSize[1] / batchSize / sizeof(float);
     for (const cv::Mat &img : imgBatch) {
         Detections result;
         float* pred_per_img = output + index * predSize;
         cuda_postprocess_init(7, imageWidth, imageHeight);
-        postprocess_box(pred_per_img, num_bboxes, num_classes, 7, conf_thr, nms_thr, dst2src[index], stream, cpu_buffers[1]);
-        int num_boxes = std::min((int)cpu_buffers[1][0], 1000);
+        postprocess_box(pred_per_img, num_bboxes, num_classes, 7, conf_thr, nms_thr, dst2src[index], stream, cpu_buffer);
+        int num_boxes = std::min((int)cpu_buffer[0], 1000);        
         for (int i = 0; i < num_boxes; i++) {
             Box box;
-            float* ptr = cpu_buffers[1] + 1 + 7 * i;
+            float* ptr = cpu_buffer + 1 + 7 * i;
             if (!ptr[6]) continue;
             box.x = ptr[0];
             box.y = ptr[1];
@@ -87,32 +88,32 @@ std::vector<Segmentations> YOLO_seg::InferenceImages(std::vector<cv::Mat> &imgBa
     this->context->enqueueV2(gpu_buf, stream, nullptr); 
     auto t_end = std::chrono::high_resolution_clock::now();
     float total_inf = std::chrono::duration<float, std::milli>(t_end - t_start).count();
-    // CUDA_CHECK(cudaMemcpyAsync(cpu_buffers[1], gpu_buffers[1], bufferSize[1], cudaMemcpyDeviceToHost, stream));    
     auto t_start_post = std::chrono::high_resolution_clock::now();
     auto boxes = PostProcess(imgBatch, gpu_buffers[1], gpu_buffers[2]);
     auto t_end_post = std::chrono::high_resolution_clock::now();
     float total_post = std::chrono::duration<float, std::milli>(t_end_post - t_start_post).count();
-    std::cout << "preprocess time: "<< total_pre << "ms " <<
-    "detection inference time: " << total_inf << "ms " 
-    "postprocess time: " << total_post << "ms " << std::endl;
+    std::cout << std::fixed << std::setprecision(4) << 
+    "batch preprocess time: "<< total_pre << "ms " <<
+    "batch inference time: " << total_inf << "ms " 
+    "batch postprocess time: " << total_post << "ms " << std::endl; 
     return boxes;
 }
 
 std::vector<Segmentations> YOLO_seg::PostProcess(const std::vector<cv::Mat> &imgBatch, float* output1, float* output2) {
     std::vector<Segmentations> vec_result;
     int index = 0;
-    auto protoSize = bufferSize[1] / sizeof(float);
-    auto predSize = bufferSize[2] / sizeof(float);
-    cuda_postprocess_init(39, imageWidth, imageHeight);
+    auto protoSize = bufferSize[1] / batchSize / sizeof(float);
+    auto predSize = bufferSize[2] / batchSize / sizeof(float);
     for (const cv::Mat &img : imgBatch){
         Segmentations result;
         float* proto = output1 + index * protoSize;
         float* pred_per_img = output2 + index * predSize;
-        postprocess_box_mask(pred_per_img, num_bboxes, num_classes, 39, conf_thr, nms_thr, dst2src[index], stream, cpu_buffers[1]);
-        int num_boxes = std::min((int)cpu_buffers[1][0], 1000);
+        cuda_postprocess_init(39, imageWidth, imageHeight);
+        postprocess_box_mask(pred_per_img, num_bboxes, num_classes, 39, conf_thr, nms_thr, dst2src[index], stream, cpu_buffer);
+        int num_boxes = std::min((int)cpu_buffer[0], 1000);
         for (int i = 0; i < num_boxes; i++) {
             Instance ins;
-            float* ptr = cpu_buffers[1] + 1 + 39 * i;
+            float* ptr = cpu_buffer + 1 + 39 * i;
             if (!ptr[6]) continue;
             ins.x = ptr[0];
             ins.y = ptr[1];

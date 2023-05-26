@@ -3,6 +3,7 @@ rtdetr:
     engine_file:   "../weights/rtdetr/rtdetr_hgnetl.trt"
     type:          "coco"
     mode:          "fp32"
+    dynamic:       1
     batchSize:     1
     imageWidth:    640
     imageHeight:   640

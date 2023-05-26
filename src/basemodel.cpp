@@ -4,6 +4,7 @@ Model::Model(const YAML::Node &config) {
     onnx_file = config["onnx_file"].as<std::string>();
     engine_file = config["engine_file"].as<std::string>();
     mode = config["mode"].as<std::string>();
+    dynamic = config["dynamic"].as<int>();
     batchSize = config["batchSize"].as<int>();
     imageWidth = config["imageWidth"].as<int>();
     imageHeight = config["imageHeight"].as<int>();
@@ -20,12 +21,21 @@ Model::~Model() {
 
 void Model::OnnxToTRTModel() {
     // create the builder
-    nvinfer1::IBuilder *builder = nvinfer1::createInferBuilder(sample::gLogger.getTRTLogger());
+    nvinfer1::IBuilder* builder = nvinfer1::createInferBuilder(sample::gLogger.getTRTLogger());
     assert(builder != nullptr);
 
     const auto explicitBatch = 1U << static_cast<uint32_t>(nvinfer1::NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
     auto network = builder->createNetworkV2(explicitBatch);
     auto config = builder->createBuilderConfig();
+    if (dynamic) {
+        nvinfer1::IOptimizationProfile* profile = builder->createOptimizationProfile();
+        profile->setDimensions("images", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1,3,imageWidth,imageHeight));
+        profile->setDimensions("images", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(8,3,imageWidth,imageHeight));
+        profile->setDimensions("images", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(32,3,imageWidth,imageHeight));
+
+        config->addOptimizationProfile(profile);
+    }
+
 
     auto parser = nvonnxparser::createParser(*network, sample::gLogger.getTRTLogger());
     if (!parser->parseFromFile(onnx_file.c_str(), static_cast<int>(sample::gLogger.getReportableSeverity()))) {
@@ -36,6 +46,7 @@ void Model::OnnxToTRTModel() {
     if (mode == "fp16")
         config->setFlag(nvinfer1::BuilderFlag::kFP16);
     else if  (mode == "int8")
+        // TODO: support int8 calibrate
         config->setFlag(nvinfer1::BuilderFlag::kINT8);
 
     nvinfer1::IHostMemory* data = builder->buildSerializedNetwork(*network, *config);
@@ -95,18 +106,24 @@ void Model::LoadEngine(){
     bufferSize.resize(nbBindings);
     for (int i = 0; i < nbBindings; ++i) {
         nvinfer1::Dims dims = engine->getBindingDimensions(i);
+        if (dims.d[0] == -1)
+                dims.d[0] = batchSize;
         nvinfer1::DataType dtype = engine->getBindingDataType(i);
-        names[i] = engine->getBindingName(i);
         int64_t totalSize = sample::volume(dims) * sample::dataTypeSize(dtype);
-        cpu_buffers[i] = (float* )malloc(totalSize);
         bufferSize[i] = totalSize;
         CUDA_CHECK(cudaMalloc(&gpu_buffers[i], totalSize));
+    }
+    cpu_buffer = (float* )malloc(1000 * 100 * sizeof(float));
+    if (dynamic) {
+        this->context->setOptimizationProfile(0);
+        this->context->setBindingDimensions(0, nvinfer1::Dims4(batchSize, 3, imageHeight, imageWidth));        
     }
     //get stream  
     cudaStreamCreate(&stream);
 }
 
 void Model::PreProcess(std::vector<cv::Mat>& img_batch) {
+    int size = imageWidth * imageHeight * 3;
     dst2src.reserve(batchSize);
     for (size_t i = 0; i < img_batch.size(); i++) {
         int height = img_batch[i].rows; 
@@ -119,7 +136,7 @@ void Model::PreProcess(std::vector<cv::Mat>& img_batch) {
         AffineMatrix mat;
         memcpy(&mat, d2s.ptr(), sizeof(mat));
         dst2src.emplace_back(mat);
-        preprocess(img_batch[i].ptr(), mat, width, height, &gpu_buffers[0][bufferSize[0] * i], imageWidth, imageHeight, stream); 
+        preprocess(img_batch[i].ptr(), mat, width, height, &gpu_buffers[0][size * i], imageWidth, imageHeight, stream); 
         CUDA_CHECK(cudaStreamSynchronize(stream));
     }
 }

@@ -77,7 +77,6 @@ void InstanceSegmentation::Inference(const std::string &input_path, const std::s
     imgInfo.reserve(batchSize);
     float total_time = 0;
     cuda_preprocess_init(maxImageSize);
-    // cuda_postprocess_init(39, imageWidth, imageHeight);
     for (const std::string &image_name : image_list) {
         index++;
         // TODO: figure out why double free.

@@ -19,14 +19,14 @@ protected:
     std::string onnx_file;
     std::string engine_file;
     std::string mode;
-    std::vector<AffineMatrix> dst2src;
+    int dynamic;
     int batchSize;
     int imageWidth;
     int imageHeight;
-    std::string names[10];
-    float** cpu_buffers = new float* [10];
+    float* cpu_buffer;
     float* gpu_buffers[10]{};
     std::vector<int64_t> bufferSize;    
+    std::vector<AffineMatrix> dst2src;
     std::shared_ptr<nvinfer1::ICudaEngine> engine;
     std::unique_ptr<nvinfer1::IExecutionContext> context;
 

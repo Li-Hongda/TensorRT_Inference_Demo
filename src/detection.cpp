@@ -96,7 +96,9 @@ void Detection::Inference(const std::string &input_path, const std::string &save
             imgInfo.clear(); 
         }
     }
-    delete [] cpu_buffers;
+    delete cpu_buffer;
+    cuda_preprocess_destroy();
+    cuda_postprocess_destroy();
     std::cout << "Average processing time is " << total_time / image_list.size() << "ms " << std::endl;
     std::cout << "Average FPS is " << 1000 * image_list.size() / total_time << std::endl;
 }

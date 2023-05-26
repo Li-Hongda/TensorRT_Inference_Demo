@@ -3,6 +3,7 @@ yolov6:
     engine_file:   "../weights/yolov6/yolov6s.trt"
     type:          "coco"
     mode:          "fp32"
+    dynamic:       1
     batchSize:     1
     imageWidth:    640
     imageHeight:   640

@@ -35,7 +35,7 @@ void cuda_postprocess_destroy() {
 	CUDA_CHECK(cudaFreeHost(out_buffer_host));
 	CUDA_CHECK(cudaFree(out_buffer_device));
 	CUDA_CHECK(cudaFree(out_mask_buffer_device));
-	// CUDA_CHECK(cudaFree(single_out_buffer_device));	
+	CUDA_CHECK(cudaFree(single_out_buffer_device));	
 }
 
 
@@ -159,6 +159,7 @@ static __global__ void fast_nms_kernel(float* bboxes, float threshold, int num_o
             }
         }
     }
+    // printf("%d", bboxes[0]);
 }
 
 static __global__ void decode_box_kernel(float* predict, int num_bboxes, int num_out,
@@ -508,7 +509,7 @@ void yolov8_postprocess_box_mask(float* predict, int num_bboxes, int num_classes
 
 void process_mask(float* out, float* proto, uint8_t* dst , int num_out, 
                   int dst_width, int dst_height, int out_w, int proto_size, cudaStream_t stream) {
-	int threads = 256;
+	int threads = 512;
 	int blocks = ceil(proto_size / threads);
  
 	CUDA_CHECK(cudaMemcpyAsync(single_out_buffer_device, out, 

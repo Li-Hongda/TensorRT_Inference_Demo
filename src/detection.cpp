@@ -17,6 +17,7 @@ Detection::Detection(const YAML::Node &config) : Model(config) {
 }
 
 void Detection::Inference(const std::string &input_path, const cv::String &save_path, const bool video) {
+    // TODO: fix bugs for video inference.
     cv::VideoCapture capture;
     capture.open(input_path);
     cv::Size size = cv::Size((int)capture.get(cv::CAP_PROP_FRAME_WIDTH), (int)capture.get(cv::CAP_PROP_FRAME_HEIGHT));        

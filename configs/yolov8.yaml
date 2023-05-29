@@ -4,7 +4,7 @@ yolov8:
     type:          "coco"
     mode:          "fp32"
     dynamic:       1
-    batchSize:     1
+    batchSize:     8
     imageWidth:    640
     imageHeight:   640
     conf_thr:      0.25

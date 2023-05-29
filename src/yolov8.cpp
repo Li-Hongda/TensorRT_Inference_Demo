@@ -79,7 +79,6 @@ std::vector<Segmentations> YOLOv8_seg::PostProcess(const std::vector<cv::Mat> &i
             ins.mask = mask;
             result.segs.emplace_back(ins);
         }
-        // cuda_postprocess_destroy();
         vec_result.emplace_back(result);
         index++;
     }

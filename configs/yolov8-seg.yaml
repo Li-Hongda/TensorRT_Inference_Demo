@@ -1,14 +1,27 @@
 yolov8-seg:
-    onnx_file:     "../weights/yolov8/yolov8s-seg.onnx"
-    engine_file:   "../weights/yolov8/yolov8s-seg.trt"
+    onnx_file:     "../weights/yolov8/yolov8s1280-seg.onnx"
+    engine_file:   "../weights/yolov8/yolov8s1280-seg.trt"
     type:          "coco"
     mode:          "fp32"
     dynamic:       1
-    batchSize:     1
-    imageWidth:    640
-    imageHeight:   640
-    conf_thr:      0.25
+    batchSize:     8
+    imageWidth:    1280
+    imageHeight:   1280
+    conf_thr:      0.45
     nms_thr:       0.45
     strides:       [8, 16, 32]
     imgMean:       [ 0, 0, 0 ]
     imgStd:        [ 1, 1, 1 ]
+    # onnx_file:     "../weights/yolov8/yolov8s-seg.onnx"
+    # engine_file:   "../weights/yolov8/yolov8s-seg.trt"
+    # type:          "coco"
+    # mode:          "fp32"
+    # dynamic:       1
+    # batchSize:     8
+    # imageWidth:    640
+    # imageHeight:   640
+    # conf_thr:      0.25
+    # nms_thr:       0.45
+    # strides:       [8, 16, 32]
+    # imgMean:       [ 0, 0, 0 ]
+    # imgStd:        [ 1, 1, 1 ]

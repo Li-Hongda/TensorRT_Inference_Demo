@@ -65,11 +65,12 @@ add_subdirectory(yolov5)
 add_subdirectory(yolov6)
 add_subdirectory(yolov7)
 add_subdirectory(yolov8)
+add_subdirectory(yolox)
 add_subdirectory(rtdetr)
 set(LIBRARY_OUTPUT_PATH ../libs)
 add_library(build SHARED ../src/build.cpp)
 
 set(EXECUTABLE_OUTPUT_PATH ../../bin)
 add_executable(object_detection main.cpp)
-target_link_libraries(object_detection yaml-cpp build yolov5 yolov6 yolov7 yolov8 rtdetr cudart)
+target_link_libraries(object_detection yaml-cpp build yolov5 yolov6 yolov7 yolov8 yolox rtdetr cudart)
 

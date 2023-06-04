@@ -61,8 +61,7 @@ struct Detections {
     std::vector<Box> dets;
 };
 
-class Detection : public Model
-{
+class Detection : public Model {
 public:
 
     explicit Detection(const YAML::Node &config);

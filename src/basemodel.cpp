@@ -8,8 +8,12 @@ Model::Model(const YAML::Node &config) {
     batchSize = config["batchSize"].as<int>();
     imageWidth = config["imageWidth"].as<int>();
     imageHeight = config["imageHeight"].as<int>();
-    imgMean = config["imgMean"].as<std::vector<float>>();
-    imgStd = config["imgStd"].as<std::vector<float>>();
+    auto imgMean = config["imgMean"].as<std::vector<float>>();
+    auto imgStd = config["imgStd"].as<std::vector<float>>();
+    auto imgScale = config["imgScale"].as<float>();
+    memcpy(norm.mean, imgMean.data(), sizeof(float) * 3);
+    memcpy(norm.std, imgStd.data(), sizeof(float) * 3);
+    norm.scale = imgScale;
 }
 
 Model::~Model() {
@@ -107,7 +111,7 @@ void Model::LoadEngine(){
     for (int i = 0; i < nbBindings; ++i) {
         nvinfer1::Dims dims = engine->getBindingDimensions(i);
         if (dims.d[0] == -1)
-                dims.d[0] = batchSize;
+            dims.d[0] = batchSize;
         nvinfer1::DataType dtype = engine->getBindingDataType(i);
         int64_t totalSize = sample::volume(dims) * sample::dataTypeSize(dtype);
         bufferSize[i] = totalSize;
@@ -136,7 +140,7 @@ void Model::PreProcess(std::vector<cv::Mat>& img_batch) {
         AffineMatrix mat;
         memcpy(&mat, d2s.ptr(), sizeof(mat));
         dst2src.emplace_back(mat);
-        preprocess(img_batch[i].ptr(), mat, width, height, &gpu_buffers[0][size * i], imageWidth, imageHeight, stream); 
+        preprocess(img_batch[i].ptr(), mat, width, height, &gpu_buffers[0][size * i], imageWidth, imageHeight, norm, stream); 
         CUDA_CHECK(cudaStreamSynchronize(stream));
     }
 }

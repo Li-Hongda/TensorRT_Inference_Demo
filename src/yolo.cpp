@@ -4,11 +4,8 @@
 YOLO::YOLO(const YAML::Node &config) : Detection(config) {
     nms_thr = config["nms_thr"].as<float>();
     strides = config["strides"].as<std::vector<int>>();
-    int index = 0;
-    for (const int &stride : strides)
-    {
+    for (const int &stride : strides) {
         num_bboxes += int(imageHeight / stride) * int(imageWidth / stride) * 3;
-        index+=1;
     } 
 }
 
@@ -69,11 +66,8 @@ std::vector<Detections> YOLO::PostProcess(const std::vector<cv::Mat> &imgBatch, 
 YOLO_seg::YOLO_seg(const YAML::Node &config) : InstanceSegmentation(config) {
     nms_thr = config["nms_thr"].as<float>();
     strides = config["strides"].as<std::vector<int>>();
-    int index = 0;
-    for (const int &stride : strides)
-    {
+    for (const int &stride : strides) {
         num_bboxes += int(imageHeight / stride) * int(imageWidth / stride) * 3;
-        index+=1;
     }     
 }
 

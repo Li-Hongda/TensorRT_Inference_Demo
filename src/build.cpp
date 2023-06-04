@@ -15,8 +15,10 @@ std::shared_ptr<Model> build_model(std::string model_arch, std::string cfg) {
         model = std::make_shared<YOLOv8>(root[model_arch]);
     else if (model_arch == "yolov8-seg")
         model = std::make_shared<YOLOv8_seg>(root[model_arch]); 
+    else if (model_arch == "yolox")
+        model = std::make_shared<YOLOX>(root[model_arch]);
     else if (model_arch == "rtdetr")
-        model = std::make_shared<RTDETR>(root[model_arch]);                
+        model = std::make_shared<RTDETR>(root[model_arch]);
     else
         std::cout << "No model arch matched!" << std::endl;
     return model;

@@ -14,20 +14,16 @@ bool __check_cuda_runtime(cudaError_t code, const char* op, const char* file, in
 	return true;
 }
 
-std::vector<std::string> get_names(const std::string &image_path)
-{
+std::vector<std::string> get_names(const std::string &image_path) {
     std::vector<std::string> image_names;
     auto dir = opendir(image_path.c_str());
 
-    if ((dir) != nullptr)
-    {
+    if ((dir) != nullptr) {
         struct dirent *entry;
         entry = readdir(dir);
-        while (entry)
-        {
+        while (entry) {
             auto temp = image_path + "/" + entry->d_name;
-            if (strcmp(entry->d_name, "") == 0 || strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-            {
+            if (strcmp(entry->d_name, "") == 0 || strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
                 entry = readdir(dir);
                 continue;
             }
@@ -80,17 +76,16 @@ static void createDirectory(const std::string &path) {
 int check_dir(const std::string & path, const bool is_mkdir) noexcept {
     DIR *p_dir;
     struct dirent *entry;
-    if(isPathExists(path)){
-        if(isDirectory(path)){
+    if(isPathExists(path)) {
+        if(isDirectory(path)) {
             if((p_dir = opendir(path.c_str())) == NULL ) {  
                 std::cout << "Opendir error: " << strerror(errno) << std::endl;
                 return -1;  
             }  
     
-            while((entry = readdir(p_dir)) != NULL){
+            while((entry = readdir(p_dir)) != NULL) {
                 std::string file_name = path + "/" + entry->d_name;
-                if((0 != strcmp(entry->d_name, ".")) && (0 != strcmp(entry->d_name, "..")))
-                {
+                if((0 != strcmp(entry->d_name, ".")) && (0 != strcmp(entry->d_name, ".."))) {
                     remove(file_name.c_str());
                 }
             }

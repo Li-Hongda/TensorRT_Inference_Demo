@@ -17,8 +17,7 @@ struct Segmentations {
     std::vector<Instance> segs;
 };
 
-class InstanceSegmentation : public Model
-{
+class InstanceSegmentation : public Model {
 public:
     explicit InstanceSegmentation(const YAML::Node &config);
     virtual std::vector<Segmentations> InferenceImages(std::vector<cv::Mat> &imgBatch) = 0;

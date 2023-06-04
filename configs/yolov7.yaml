@@ -10,5 +10,6 @@ yolov7:
     conf_thr:      0.25
     nms_thr:       0.45
     strides:       [8, 16, 32]
+    imgScale:      255
     imgMean:       [ 0, 0, 0 ]
     imgStd:        [ 1, 1, 1 ]

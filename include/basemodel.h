@@ -31,7 +31,9 @@ protected:
     std::unique_ptr<nvinfer1::IExecutionContext> context;
 
     cudaStream_t stream;
-    std::vector<float> imgMean;
-    std::vector<float> imgStd;   
+    Norm norm;
+    // float imgScale;
+    // std::vector<float> imgMean;
+    // std::vector<float> imgStd;   
 };
 #endif

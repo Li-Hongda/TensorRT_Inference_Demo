@@ -9,5 +9,6 @@ rtdetr:
     imageHeight:   640
     conf_thr:      0.5
     num_queries:   300
+    imgScale:      255
     imgMean:       [ 0, 0, 0 ]
     imgStd:        [ 1, 1, 1 ]

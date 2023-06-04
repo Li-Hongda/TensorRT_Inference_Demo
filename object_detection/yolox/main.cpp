@@ -1,4 +1,4 @@
-#include "../../include/yolov5.h"
+#include "../../include/yolox.h"
 
 
 int main(int argc, char** argv) {
@@ -6,11 +6,11 @@ int main(int argc, char** argv) {
     std::string cfg_dir = "../configs";
     std::string cfg_suffix = ".yaml";
     std::string savedir = "../results";
-    auto savepath = savedir + "/" + "yolov5" + "/";
-    auto cfg = cfg_dir + "/" + "yolov5" + cfg_suffix;    
+    auto savepath = savedir + "/" + "yolox" + "/";
+    auto cfg = cfg_dir + "/" + "yolox" + cfg_suffix;    
     YAML::Node root = YAML::LoadFile(cfg);
-    YOLOv5 YOLOv5(root["yolov5"]);
-    YOLOv5.LoadEngine();
-    YOLOv5.Inference(inputpath, savepath);
+    YOLOX YOLOX(root["yolox"]);
+    YOLOX.LoadEngine();
+    YOLOX.Inference(inputpath, savepath);
     return 0;
 }

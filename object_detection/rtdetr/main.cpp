@@ -1,7 +1,6 @@
 #include "../../include/rtdetr.h"
 
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     std::string inputpath = argv[1];
     std::string cfg_dir = "../configs";
     std::string cfg_suffix = ".yaml";

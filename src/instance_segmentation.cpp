@@ -122,8 +122,7 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
             for (int row = ins.y; row < ins.y + ins.h; row++) {	
                 if (row < 0 || row >= img.rows) continue;
                 cv::Vec<uint8_t, 1> *data_Ptr = reg_img.ptr<cv::Vec<uint8_t, 1>> (row);
-                for (int col = ins.x; col < ins.x + ins.w; col++)
-                {
+                for (int col = ins.x; col < ins.x + ins.w; col++) {
                     if (col < 0 || col >= img.cols) continue;
                     data_Ptr[col][0] = 1;
                 }
@@ -177,8 +176,7 @@ void InstanceSegmentation::Visualize(const std::vector<Segmentations> &segmentat
             for (int row = ins.y; row < ins.y + ins.h; row++) {	
                 if (row < 0 || row >= frame.rows) continue;
                 cv::Vec<uint8_t, 1> *data_Ptr = reg_img.ptr<cv::Vec<uint8_t, 1>> (row);
-                for (int col = ins.x; col < ins.x + ins.w; col++)
-                {
+                for (int col = ins.x; col < ins.x + ins.w; col++) {
                     if (col < 0 || col >= frame.cols) continue;
                     data_Ptr[col][0] = 1;
                 }

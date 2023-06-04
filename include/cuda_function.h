@@ -3,6 +3,11 @@
 #include "common.h"
 #include <cstdint>
 
+struct Norm {
+    float mean[3];
+    float std[3];
+	float scale;
+};
 
 struct AffineMatrix {
     float v0, v1, v2;
@@ -18,7 +23,7 @@ void cuda_postprocess_destroy();
 void process_mask_init(int num_out, int width, int height);
 
 void preprocess(uint8_t* src, AffineMatrix d2s, int src_width, int src_height,
-                     float* dst, int dst_width, int dst_height,
+                     float* dst, int dst_width, int dst_height, Norm norm,
                      cudaStream_t stream);					 
 
 void postprocess_box(float* predict, int num_bboxes, int num_classes, int num_out, float conf_thr,

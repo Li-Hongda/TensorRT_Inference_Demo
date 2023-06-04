@@ -45,12 +45,12 @@ This repo use TensorRT-8.x to deploy well-trained models, both image preprocessi
 
 - [x] [YOLOv5](https://github.com/ultralytics/yolov5)<br>
 - [x] [YOLOv5-seg](https://github.com/ultralytics/yolov5)<br>
+- [x] [YOLOv6](https://github.com/meituan/YOLOv6)<br>
 - [x] [YOLOv7](https://github.com/WongKinYiu/yolov7)<br>
 - [x] [YOLOv8](https://github.com/ultralytics/ultralytics)<br>
 - [x] [YOLOv8-seg](https://github.com/ultralytics/ultralytics)<br>
+- [x] [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX)<br>
 - [x] [RT-DETR](https://github.com/PaddlePaddle/PaddleDetection/tree/develop/configs/rtdetr)<br>
-- [x] [YOLOv6](https://github.com/meituan/YOLOv6)<br>
-- [ ] [YOLO-NAS](https://github.com/Deci-AI/super-gradients) (to be continued)<br>
 </details>
 
 All speed tests were performed on RTX 3090 with COCO Val set.The time calculated here is the sum of the time of image loading, preprocess, inference and postprocess, so it's going to be slower than what's reported in the paper.

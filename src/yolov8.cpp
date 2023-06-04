@@ -1,12 +1,9 @@
 #include "yolov8.h"
 
 YOLOv8::YOLOv8(const YAML::Node &config) : YOLO(config) {
-    int index = 0;
     num_bboxes = 0;
-    for (const int &stride : strides)
-    {
+    for (const int &stride : strides) {
         num_bboxes += int(imageHeight / stride) * int(imageWidth / stride);
-        index+=1;
     }
 }
 
@@ -41,12 +38,9 @@ std::vector<Detections> YOLOv8::PostProcess(const std::vector<cv::Mat> &imgBatch
 
 
 YOLOv8_seg::YOLOv8_seg(const YAML::Node &config) : YOLO_seg(config) {
-    int index = 0;
     num_bboxes = 0;
-    for (const int &stride : strides)
-    {
+    for (const int &stride : strides) {
         num_bboxes += int(imageHeight / stride) * int(imageWidth / stride);
-        index+=1;
     }
 }
 

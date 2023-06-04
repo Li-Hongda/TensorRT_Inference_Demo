@@ -38,12 +38,16 @@ void cuda_postprocess_destroy() {
 	CUDA_CHECK(cudaFree(single_out_buffer_device));	
 }
 
+static __device__ float normalize(float value, float scale, float mean, float std) {
+    return ((value / scale) - mean) / std;
+};
+
 
 static __global__ void warpaffine_kernel_bilinear(
     uint8_t* src, int src_line_size, int src_width,
     int src_height, float* dst, int dst_width,
     int dst_height, uint8_t padding_value,
-    AffineMatrix d2s, int size) {
+    AffineMatrix d2s, Norm norm, int size) {
 	int position = blockDim.x * blockIdx.x + threadIdx.x;
 	if (position >= size) return;
 
@@ -98,9 +102,10 @@ static __global__ void warpaffine_kernel_bilinear(
 	c0 = t;
 
 	// normalization
-	c0 = c0 / 255.0f;
-	c1 = c1 / 255.0f;
-	c2 = c2 / 255.0f;
+    c0 = normalize(c0, norm.scale, norm.mean[0], norm.std[0]);
+    c1 = normalize(c1, norm.scale, norm.mean[1], norm.std[1]);
+    c2 = normalize(c2, norm.scale, norm.mean[2], norm.std[2]);
+
 
 	// rgbrgbrgb to rrrgggbbb
 	int area = dst_width * dst_height;
@@ -134,14 +139,13 @@ static __device__ float box_iou(
     return c_area / (a_area + b_area - c_area);
 }
 
-static __global__ void fast_nms_kernel(float* bboxes, float threshold, int num_out)
-{
+static __global__ void fast_nms_kernel(float* bboxes, float threshold, int num_out) {
     int position = blockDim.x * blockIdx.x + threadIdx.x;
     int count = (int)*bboxes;
     if (position > count) return; 
 
     float* pcurrent = bboxes + 1  + position * num_out; 
-    for (int i = 0; i < count; ++i){
+    for (int i = 0; i < count; ++i) {
         float* pitem = bboxes + 1 + i * num_out;
 		
         if (i == position || pcurrent[5]!= pitem[5] ) continue;
@@ -153,7 +157,7 @@ static __global__ void fast_nms_kernel(float* bboxes, float threshold, int num_o
                 pcurrent[0], pcurrent[1], pcurrent[2], pcurrent[3],
                 pitem[0], pitem[1], pitem[2], pitem[3]);
 
-            if (iou > threshold){
+            if (iou > threshold) {
                 pcurrent[6] = 0;
                 return;
             }
@@ -171,6 +175,7 @@ static __global__ void decode_box_kernel(float* predict, int num_bboxes, int num
 
     float* pred_per_obj = predict + position * (num_classes + 5);
     if (pred_per_obj[4] < conf_thr) return;
+    // printf("%f", pred_per_obj[4]);
 	
     float* cls_score = pred_per_obj + 5;
 
@@ -400,23 +405,23 @@ static __global__ void yolov8_decode_box_mask_kernel(float* predict, int num_bbo
 	}
 }
 
-static __global__ void process_mask_kernel(float* out, float* proto, uint8_t* dst , 
+static __global__ void process_mask_kernel(float* pred, float* proto, uint8_t* dst , 
 										   int dst_width, int dst_height, int out_w, int proto_size) {
 	int position = blockDim.x * blockIdx.x + threadIdx.x;
 	if (position >= proto_size) return;
 
 	int dx = position % dst_width;
 	int dy = position / dst_width;
-    int left = out[0] / 4;
-    int top = out[1] / 4;
-    int right = left + out[2] / 4;
-    int bottom = top + out[3] / 4;
+    int left = pred[0] / 4;
+    int top = pred[1] / 4;
+    int right = left + pred[2] / 4;
+    int bottom = top + pred[3] / 4;
 
     if (dx >= dst_width || dy >= dst_height) return;
     float c = 0;
     if (left < dx < right && top < dy < bottom) {
         for(int j = 0; j < out_w; ++j) {
-            c += out[j + 7] * proto[(j * dst_height + dy) * dst_width + dx];
+            c += pred[j + 7] * proto[(j * dst_height + dy) * dst_width + dx];
         }        
     } else {
         dst[dy * dst_width + dx] = 0;
@@ -431,7 +436,7 @@ static __global__ void process_mask_kernel(float* out, float* proto, uint8_t* ds
 
 void preprocess(uint8_t* src, AffineMatrix d2s, int src_width, 
 				int src_height, float* dst, int dst_width, 
-				int dst_height, cudaStream_t stream) {	
+				int dst_height, Norm norm, cudaStream_t stream) {	
 	int size = dst_height * dst_width;
 	int threads = 256;
 	int blocks = ceil(size / (float)threads);
@@ -441,7 +446,7 @@ void preprocess(uint8_t* src, AffineMatrix d2s, int src_width,
 	warpaffine_kernel_bilinear<<<blocks, threads, 0, stream>>>(
 		img_buffer_device, src_width * 3, src_width,
 		src_height, dst, dst_width,
-		dst_height, 0, d2s, size);	
+		dst_height, 0, d2s, norm, size);	
 }
 
 void postprocess_box(float* predict, int num_bboxes, int num_classes, int num_out,

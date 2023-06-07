@@ -18,7 +18,7 @@ Model::Model(const YAML::Node &config) {
 
 Model::~Model() {
     cudaStreamDestroy(stream);
-    for (int i = 0; i < engine->getNbBindings(); i++){
+    for (int i = 0; i < engine->getNbBindings(); i++) {
         CUDA_CHECK(cudaFree(gpu_buffers[i]));
     }
 };
@@ -91,7 +91,7 @@ bool Model::ReadTrtFile() {
     // sample::gLogInfo << "deserialize done" << std::endl;
 }
 
-void Model::LoadEngine(){
+void Model::LoadEngine() {
     // create and load engine
     std::fstream existEngine;
     existEngine.open(engine_file, std::ios::in);

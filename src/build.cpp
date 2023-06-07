@@ -17,6 +17,8 @@ std::shared_ptr<Model> build_model(std::string model_arch, std::string cfg) {
         model = std::make_shared<YOLOv8_seg>(root[model_arch]); 
     else if (model_arch == "yolox")
         model = std::make_shared<YOLOX>(root[model_arch]);
+    else if (model_arch == "yolonas")
+        model = std::make_shared<YOLONAS>(root[model_arch]);        
     else if (model_arch == "rtdetr")
         model = std::make_shared<RTDETR>(root[model_arch]);
     else

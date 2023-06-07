@@ -7,6 +7,7 @@
 #include "yolov7.h"
 #include "yolov8.h"
 #include "yolox.h"
+#include "yolonas.h"
 #include "rtdetr.h"
 
 std::shared_ptr<Model> build_model(std::string model_arch, std::string cfg);

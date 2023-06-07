@@ -1,0 +1,15 @@
+yolonas:
+    onnx_file:     "../weights/yolonas/yolonas-s.onnx"
+    engine_file:   "../weights/yolonas/yolonas-s.trt"
+    type:          "coco"
+    mode:          "fp32"
+    dynamic:       0
+    batchSize:     1
+    imageWidth:    640
+    imageHeight:   640
+    conf_thr:      0.25
+    nms_thr:       0.45
+    strides:       [8, 16, 32]
+    imgScale:      255
+    imgMean:       [ 0, 0, 0 ]
+    imgStd:        [ 1, 1, 1 ]

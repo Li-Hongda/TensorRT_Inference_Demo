@@ -37,6 +37,7 @@ This repo use TensorRT-8.x to deploy well-trained models, both image preprocessi
 + 2023.05.19 🚀 Support cuda mask postprocess and support rtdetr.
 + 2023.05.21 🚀 Support yolov6.
 + 2023.05.26 🚀 Support dynamic batch inference.
++ 2023.06.07 🚀 Support yolox and yolo-nas.
 </details>
 
 ## 3.Support Models
@@ -51,6 +52,7 @@ This repo use TensorRT-8.x to deploy well-trained models, both image preprocessi
 - [x] [YOLOv8-seg](https://github.com/ultralytics/ultralytics)<br>
 - [x] [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX)<br>
 - [x] [RT-DETR](https://github.com/PaddlePaddle/PaddleDetection/tree/develop/configs/rtdetr)<br>
+- [x] [YOLO-NAS](https://github.com/Deci-AI/super-gradients)<br>
 </details>
 
 All speed tests were performed on RTX 3090 with COCO Val set.The time calculated here is the sum of the time of image loading, preprocess, inference and postprocess, so it's going to be slower than what's reported in the paper.
@@ -65,6 +67,8 @@ All speed tests were performed on RTX 3090 with COCO Val set.The time calculated
 | YOLOv7  | 1 | FP32 | 640x640 | 107 |
 | YOLOv8-s  | 1 | FP32 | 640x640 | 171 |
 | YOLOv8-seg-s  | 1 | FP32 | 640x640 | 122 |
+| YOLOX-s  | 1 | FP32 | 640x640 | 156 |
+| YOLO-NAS-s  | 1 | FP32 | 640x640 | 165 |
 | RT-DETR  | 1 | FP32 | 640x640 | 106 |
 </div>
 

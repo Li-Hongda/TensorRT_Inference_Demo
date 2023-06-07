@@ -35,6 +35,9 @@ void yolov8_postprocess_box(float* predict, int num_bboxes, int num_classes, int
 void rtdetr_postprocess_box(float* predict_box, float* predict_cls, int num_bboxes,  int num_classes, int num_out,
 							float conf_thr, int imageWidth, int imageHeight, AffineMatrix mat, cudaStream_t stream, float* dst);
 
+void yolonas_postprocess_box(float* predict, int num_bboxes, int num_classes, int num_out, float conf_thr,
+				float nms_thr, AffineMatrix mat, cudaStream_t stream, float* dst);
+
 void postprocess_box_mask(float* predict, int num_bboxes, int num_classes, int num_out, 
 						  float conf_thr, float nms_thr, AffineMatrix mat, cudaStream_t stream, float* dst);
 

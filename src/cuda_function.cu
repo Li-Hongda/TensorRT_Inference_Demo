@@ -254,12 +254,55 @@ static __global__ void yolov8_decode_box_kernel(float* predict, int num_bboxes, 
     float* pout_item = parray + 1 + index * num_out;
     pout_item[0] = left;
     pout_item[1] = top;
-    pout_item[2] = width;
-    pout_item[3] = height;
+    pout_item[2] = right - left;
+    pout_item[3] = bottom - top;
     pout_item[4] = score;
     pout_item[5] = label;
 	pout_item[6] = 1;		
 }
+
+static __global__ void yolonas_decode_box_kernel(float* predict, int num_bboxes, int num_out,
+										 int num_classes, float conf_thr, AffineMatrix mat, 
+    									 float* parray) {
+
+    int position = blockDim.x * blockIdx.x + threadIdx.x;
+    if (position >= num_bboxes) return;
+
+    float* pred_per_obj = predict + position * (num_classes + 4);
+	
+    float* cls_score = pred_per_obj + 4;
+
+    float score = *cls_score++;
+
+    int label = 0;
+    for (int i = 1; i < num_classes; i++, ++cls_score) {
+        if (*cls_score > score) {   
+            score = *cls_score;
+            label = i;
+        }
+    }
+    if (score < conf_thr) return;
+    float l = pred_per_obj[0];
+    float t = pred_per_obj[1];
+    float r = pred_per_obj[2];
+    float b = pred_per_obj[3];
+    auto left = mat.v0 * l + mat.v1 * t + mat.v2;
+    auto right = mat.v0 * r + mat.v1 * b + mat.v2;
+    auto top = mat.v3 * l + mat.v4 * t + mat.v5;
+    auto bottom = mat.v3 * r + mat.v4 * b + mat.v5;  
+
+    int index = atomicAdd(parray, 1);
+    
+    float* pout_item = parray + 1 + index * num_out;
+    pout_item[0] = left;
+    pout_item[1] = top;
+    pout_item[2] = right - left;
+    pout_item[3] = bottom - top;
+    pout_item[4] = score;
+    pout_item[5] = label;
+	pout_item[6] = 1;		
+}
+
 
 
 static __global__ void rtdetr_decode_box_kernel(float* predict_box, float* predict_cls, int num_bboxes, 
@@ -299,8 +342,8 @@ static __global__ void rtdetr_decode_box_kernel(float* predict_box, float* predi
     float* pout_item = parray + 1 + index * num_out;
     pout_item[0] = left;
     pout_item[1] = top;
-    pout_item[2] = width;
-    pout_item[3] = height;
+    pout_item[2] = right - left;
+    pout_item[3] = bottom - top;
     pout_item[4] = score;
     pout_item[5] = label;	
 }
@@ -346,8 +389,8 @@ static __global__ void decode_box_mask_kernel(float* predict, int num_bboxes, in
     float* pout_item = parray + 1 + index * num_out;
     pout_item[0] = left;
     pout_item[1] = top;
-    pout_item[2] = width;
-    pout_item[3] = height;
+    pout_item[2] = right - left;
+    pout_item[3] = bottom - top;
     pout_item[4] = score;
     pout_item[5] = label;
 	pout_item[6] = 1;	
@@ -395,8 +438,8 @@ static __global__ void yolov8_decode_box_mask_kernel(float* predict, int num_bbo
     float* pout_item = parray + 1 + index * num_out;
     pout_item[0] = left;
     pout_item[1] = top;
-    pout_item[2] = width;
-    pout_item[3] = height;
+    pout_item[2] = right - left;
+    pout_item[3] = bottom - top;
     pout_item[4] = score;
     pout_item[5] = label;
 	pout_item[6] = 1;	
@@ -483,6 +526,19 @@ void rtdetr_postprocess_box(float* predict_box, float* predict_cls, int num_bbox
     rtdetr_decode_box_kernel<<<grid, block, 0, stream>>>(predict_box, predict_cls, num_bboxes, num_out, num_classes, 
 												  conf_thr,imageWidth, imageHeight, mat, out_buffer_device);
 	CUDA_CHECK(cudaMemcpyAsync(dst, out_buffer_device, sizeof(int) + 300 * num_out * sizeof(float), cudaMemcpyDeviceToHost, stream));
+	CUDA_CHECK(cudaStreamSynchronize(stream));
+}
+
+void yolonas_postprocess_box(float* predict, int num_bboxes, int num_classes, int num_out,
+	float conf_thr, float nms_thr, AffineMatrix mat, cudaStream_t stream, float* dst) {
+    auto block = num_bboxes > 512 ? 512 : num_bboxes;
+    auto grid = (num_bboxes + block - 1) / block;
+    yolonas_decode_box_kernel<<<grid, block, 0, stream>>>(predict, num_bboxes, num_out, num_classes, 
+												  conf_thr, mat, out_buffer_device);
+    block = 512;
+    grid = (1000 + block - 1) / block;
+    fast_nms_kernel<<<grid, block, 0, stream>>>(out_buffer_device, nms_thr, num_out);
+	CUDA_CHECK(cudaMemcpyAsync(dst, out_buffer_device, sizeof(int) + 1000 * num_out * sizeof(float), cudaMemcpyDeviceToHost, stream));
 	CUDA_CHECK(cudaStreamSynchronize(stream));
 }
 

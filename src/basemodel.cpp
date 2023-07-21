@@ -132,7 +132,9 @@ void Model::PreProcess(std::vector<cv::Mat>& img_batch) {
     for (size_t i = 0; i < img_batch.size(); i++) {
         int height = img_batch[i].rows; 
         int width = img_batch[i].cols;
-        float scale = std::min(imageHeight / height, imageWidth / width);
+        auto h_scale = static_cast<float>(imageHeight) / static_cast<float>(height);
+        float w_scale = static_cast<float>(imageWidth) / static_cast<float>(width);
+        float scale = std::min(h_scale, w_scale);
         cv::Mat s2d = (cv::Mat_<float>(2, 3) << scale, 0.f, (-scale * width + imageWidth + scale - 1) * 0.5,
         0.f, scale, (-scale * height + imageHeight + scale - 1) * 0.5);
         cv::Mat d2s = cv::Mat::zeros(2, 3, CV_32FC1);
